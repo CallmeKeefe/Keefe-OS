@@ -101,7 +101,7 @@ pub extern "C" fn kernel_start(
     
     // Initialize IDT (Interrupt Descriptor Table)
     println!("Initializing IDT...");
-    interrupts::idt::init();
+    interrupts::init_interrupts();
     
     println!("\n========================================");
     println!("KeefeOS Microkernel initialized successfully!");

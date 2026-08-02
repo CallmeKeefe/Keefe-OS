@@ -21,6 +21,7 @@
 #![feature(asm_const)]
 #![feature(naked_functions)]
 #![feature(panic_info_message)]
+#![feature(abi_x86_interrupt)]
 #![warn(missing_docs)]
 #![warn(missing_debug_implementations)]
 

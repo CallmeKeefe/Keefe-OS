@@ -193,7 +193,7 @@ impl GlobalDescriptorTableWrapper {
         println!("  [GDT] Kernel Code: selector={:#06x}, DPL=0", kernel_code_selector.0);
         println!("  [GDT] User Code:   selector={:#06x}, DPL=3", user_code_selector.0);
         println!("  [GDT] TSS loaded at: {:?}", unsafe { 
-            TSS.as_ref().unwrap().interrupt_stack_table[0] 
+            TSS.as_ref().unwrap().interrupt_stack_table[1] 
         });
         
         GlobalDescriptorTableWrapper {
@@ -249,7 +249,7 @@ unsafe fn init_tss() {
             (&raw mut DOUBLE_FAULT_STACK as *mut Option<AlignedStack> as u64)
                 + DOUBLE_FAULT_STACK_SIZE as u64
         );
-        tss.interrupt_stack_table[0] = stack_top;
+        tss.interrupt_stack_table[1] = stack_top;  // IST index 1 matches IDT set_stack_index(1)
         
         // IST entries 2-7 are available for other critical handlers:
         // - IST 2: NMI (Non-Maskable Interrupt)
@@ -261,7 +261,7 @@ unsafe fn init_tss() {
         // update rsp0 when switching threads (future implementation).
         
         println!("  [TSS] Configured with {} byte double fault stack", DOUBLE_FAULT_STACK_SIZE);
-        println!("  [TSS] IST[0] (Double Fault): {:?}", stack_top);
+        println!("  [TSS] IST[1] (Double Fault): {:?}", stack_top);
     }
 }
 

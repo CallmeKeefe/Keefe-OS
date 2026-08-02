@@ -61,7 +61,7 @@ static mut IDT: Option<InterruptDescriptorTable> = None;
 ///
 /// Must be called after GDT initialization and before enabling interrupts.
 /// Calling this function twice will overwrite the previous IDT.
-pub fn init() {
+pub fn init_interrupts() {
     let mut idt = InterruptDescriptorTable::new();
     
     // ================================================================
@@ -296,6 +296,15 @@ extern "x86-interrupt" fn double_fault_handler(
 ///
 /// The CR2 register contains the faulting linear address.
 /// The error code contains flags describing the fault type.
+///
+/// # Capability-Based Security Design
+///
+/// In KeefeOS's capability-based microkernel:
+/// - Ring 0 (kernel) page faults trigger a controlled panic
+/// - Ring 3 (user-space) page faults will eventually:
+///   1. Terminate only the faulting process
+///   2. Send an IPC message to a user-space crash handler service
+///   3. Log the fault for debugging/audit purposes
 extern "x86-interrupt" fn page_fault_handler(
     frame: InterruptStackFrame,
     error_code: PageFaultErrorCode,
@@ -310,11 +319,17 @@ extern "x86-interrupt" fn page_fault_handler(
     let protection_violation = error_code.contains(PageFaultErrorCode::PROTECTION_VIOLATION);
     let shadow_stack_access = error_code.contains(PageFaultErrorCode::SHADOW_STACK);
     
+    // Determine privilege level from code segment
+    // RPL (Requested Privilege Level) is in bits 0-1 of CS
+    let privilege_level = frame.code_segment.as_u64() & 0b11;
+    let is_user_mode = privilege_level == 3;
+    
     println!("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     println!("!!!              PAGE FAULT                 !!!");
     println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     
     println!("Faulting Address: {:#018x}", faulting_addr.as_u64());
+    println!("Privilege Level: Ring {}", privilege_level);
     println!("\nError Flags:");
     println!("  Caused by write:          {}", caused_by_write);
     println!("  User mode access:         {}", user_mode_access);
@@ -327,14 +342,19 @@ extern "x86-interrupt" fn page_fault_handler(
     println!("  Code Segment:        {:#06x}", frame.code_segment.as_u64());
     println!("  Stack Pointer:       {:#018x}", frame.stack_pointer.as_u64());
     
-    // Capability-based security note:
-    // In user mode (Ring 3), this would trigger process termination
-    // and send an IPC message to the crash handler service.
-    // For now, all faults are treated as fatal in the kernel.
-    
-    println!("\nKeefeOS Security Note:");
-    println!("  In production, Ring 3 faults terminate only the process.");
-    println!("  Ring 0 faults (like this) halt the entire system.");
+    // Capability-based security handling
+    if is_user_mode {
+        // TODO: For Ring 3 faults, we will eventually:
+        // 1. Terminate only the faulting process (not the whole system)
+        // 2. Send IPC message to user-space crash handler
+        // 3. Log the fault for debugging/audit
+        println!("\n[KeefeOS] Ring 3 Page Fault - Process should be terminated");
+        println!("[KeefeOS] Future: IPC to crash handler service");
+        println!("[KeefeOS] For now: Halting for safety during development");
+    } else {
+        println!("\n[KeefeOS] Ring 0 Page Fault - Kernel integrity compromised");
+        println!("[KeefeOS] System must halt to prevent corruption spread");
+    }
     
     println!("\nSystem halted.");
     interrupts::disable();
