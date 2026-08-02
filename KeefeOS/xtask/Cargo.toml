@@ -1,0 +1,11 @@
+[package]
+name = "xtask"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Build automation tasks for KeefeOS"
+
+[dependencies]
+# FAT filesystem support for creating boot images
+fatfs = "0.3"
