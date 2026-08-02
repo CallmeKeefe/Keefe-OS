@@ -5,6 +5,7 @@
 //! - CPU exception handlers (divide by zero, page fault, etc.)
 //! - Double fault handler with dedicated Interrupt Stack Table (IST)
 //! - Hardware interrupt groundwork (IRQ offset mapping)
+//! - Timer interrupt configuration (PIT)
 //!
 //! # Capability-Based Security Design
 //!
@@ -22,6 +23,9 @@
 //! ```text
 //! Vectors 0-31:   CPU Exceptions (non-maskable)
 //! Vectors 32-47:  Hardware IRQs (8259 PIC legacy, remapped)
+//!                 - IRQ 0 (Timer/PIT) -> Vector 32
+//!                 - IRQ 1 (Keyboard) -> Vector 33
+//!                 - ...
 //! Vectors 48+:    Software interrupts, syscalls, APIC interrupts
 //! ```
 //!
@@ -43,11 +47,13 @@
 pub mod idt;
 pub mod gdt;
 pub mod exceptions;
+pub mod timer;
 
 // Re-export key types for convenience
 pub use idt::init_interrupts;
 pub use gdt::{GlobalDescriptorTableWrapper, TaskStateSegmentWrapper};
 pub use exceptions::ExceptionFrame;
+pub use timer::{init_pit, DEFAULT_TIMER_FREQUENCY, PIT_BASE_FREQUENCY};
 
 /// Hardware interrupt offset
 /// 

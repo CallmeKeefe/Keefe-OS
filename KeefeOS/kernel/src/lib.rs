@@ -5,6 +5,7 @@
 //! - Physical memory management (frame allocation)
 //! - Virtual memory management (page tables)
 //! - Interrupt handling (GDT, IDT, exceptions)
+//! - Task scheduling and context switching
 //! - Capability-based security primitives
 //!
 //! # Safety Guarantees
@@ -30,6 +31,7 @@ pub mod arch;
 pub mod memory;
 pub mod console;
 pub mod interrupts;
+pub mod task;
 
 /// Kernel version information
 pub const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
