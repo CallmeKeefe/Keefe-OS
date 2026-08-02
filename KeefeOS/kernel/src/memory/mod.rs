@@ -33,7 +33,7 @@ pub mod frame_allocator;
 pub mod paging;
 
 use self::frame_allocator::PhysicalFrameAllocator;
-use self::paging::{init as paging_init, MapFlags};
+use self::paging::{MapFlags, KERNEL_OFFSET};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use spin::Mutex;
 
@@ -84,7 +84,7 @@ pub fn init(memory_map: &[UEFIMemoryRegion], kernel_start: usize, kernel_end: us
     }
     
     // Initialize paging subsystem
-    paging_init();
+    paging::init();
     
     log::info!("Memory management subsystem initialized");
 }
