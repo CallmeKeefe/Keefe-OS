@@ -363,6 +363,12 @@ KeefeOS is an open-source project. We welcome contributions!
 - 📚 Technical writers for documentation
 - 🎨 UI/UX designers for future GUI
 
+### Documentation
+
+- **[Contributing Guide](docs/CONTRIBUTING_GUIDE.md)** - Detailed guide for contributors in all areas
+- **[Installation Guide](docs/INSTALLATION_GUIDE.md)** - Complete download and installation instructions for all devices
+- **[Architecture Docs](docs/STEP3_IDT.md)** - Technical architecture documentation
+
 ---
 
 ## 📄 License
