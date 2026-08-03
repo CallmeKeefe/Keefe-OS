@@ -7,6 +7,8 @@
 //! - Interrupt handling (GDT, IDT, exceptions)
 //! - Capability-based security primitives
 //! - AI/ML-powered intelligent subsystems
+//! - Advanced security with blockchain audit logs
+//! - LLM-powered AI agent for natural language interaction
 //!
 //! # Safety Guarantees
 //!
@@ -32,6 +34,8 @@ pub mod memory;
 pub mod console;
 pub mod interrupts;
 pub mod ai;
+pub mod security;
+pub mod llm_agent;
 
 /// Kernel version information
 pub const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -47,6 +51,14 @@ pub fn init() {
     
     // Initialize AI/ML subsystem
     ai::init();
+    
+    // Initialize security subsystem
+    security::init().unwrap_or_else(|e| {
+        log::error!("Failed to initialize security subsystem: {}", e);
+    });
+    
+    // Initialize LLM-powered AI agent
+    llm_agent::init();
     
     log::info!("KeefeOS initialization complete");
 }
