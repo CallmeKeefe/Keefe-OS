@@ -1,0 +1,67 @@
+# KeefeOS Copyright Notice
+
+## Primary Copyright
+
+**Copyright (c) 2024 KeefeOS Team. All rights reserved.**
+
+KeefeOS is a trademark of KeefeOS Team.
+
+## Licensing
+
+KeefeOS is dual-licensed under:
+- MIT License (see LICENSE-MIT)
+- Apache License 2.0 (see LICENSE-APACHE)
+
+You may choose either license for your use of this software.
+
+## Third-Party Components
+
+### Rust Standard Library Components
+
+KeefeOS uses components derived from the Rust standard library, which is licensed under MIT/Apache-2.0.
+
+### Dependencies
+
+The following third-party crates are used under their respective licenses:
+
+| Crate | Version | License |
+|-------|---------|---------|
+| x86_64 | 0.15 | MIT/Apache-2.0 |
+| spin | 0.9 | MIT/Apache-2.0 |
+| volatile | 0.4 | MIT/Apache-2.0 |
+| bitflags | 2.6 | MIT/Apache-2.0 |
+| log | 0.4 | MIT/Apache-2.0 |
+| uefi | 0.33 | MIT/Apache-2.0 |
+| uefi-services | 0.32 | MIT/Apache-2.0 |
+
+All dependencies are compatible with our dual-license model.
+
+### Embedded Fonts/Icons
+
+None currently included. Any future additions will be properly attributed.
+
+## Contributor Copyright
+
+Individual contributors retain copyright to their contributions but grant KeefeOS Team a license to distribute them under the project's license terms. See CONTRIBUTING.md for details.
+
+## Patents
+
+Under the Apache License 2.0, contributors grant a patent license for any patents they hold that are necessarily infringed by their contributions.
+
+## Trademarks
+
+"KeefeOS" and the KeefeOS logo are trademarks of KeefeOS Team. These trademarks may not be used to endorse or promote products derived from this software without specific prior written permission.
+
+## Export Control
+
+This software may be subject to export control regulations. Users are responsible for compliance with applicable export laws.
+
+## Government Rights
+
+U.S. Government End Users: This software is provided with "Restricted Rights" as set forth in 48 C.F.R. 12.212 and 48 C.F.R. 227.7202.
+
+---
+
+**Last Updated: January 2024**
+
+For questions about copyright or licensing, contact: legal@keefeos.org
