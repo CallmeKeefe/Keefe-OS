@@ -1,0 +1,201 @@
+//! AI/ML Subsystem for KeefeOS
+//!
+//! This module provides intelligent operating system capabilities including:
+//! - Machine learning-based process scheduling
+//! - Predictive memory management
+//! - Anomaly detection for security
+//! - Self-optimizing performance tuning
+//! - Neural network inference engine (embedded)
+//!
+//! # Architecture
+//!
+//! The AI subsystem runs as a privileged kernel service with the following components:
+//! 1. **Scheduler ML**: Predicts process behavior for optimal CPU allocation
+//! 2. **Memory Predictor**: Anticipates page faults and pre-loads data
+//! 3. **Security AI**: Detects anomalous patterns indicating attacks
+//! 4. **Performance Optimizer**: Continuously tunes kernel parameters
+
+#![no_std]
+
+use core::sync::atomic::{AtomicU64, Ordering};
+use alloc::vec::Vec;
+use alloc::boxed::Box;
+
+pub mod scheduler;
+pub mod memory_predictor;
+pub mod anomaly_detector;
+pub mod neural_net;
+pub mod optimizer;
+
+/// AI subsystem version
+pub const AI_VERSION: &str = "0.1.0";
+
+/// Global statistics for AI operations
+static INFERENCE_COUNT: AtomicU64 = AtomicU64::new(0);
+static TRAINING_ITERATIONS: AtomicU64 = AtomicU64::new(0);
+static PREDICTION_ACCURACY: AtomicU64 = AtomicU64::new(0);
+
+/// Initialize the AI/ML subsystem
+///
+/// This should be called after memory management is initialized
+/// but before user-space processes are started.
+pub fn init() {
+    log::info!("Initializing KeefeOS AI/ML Subsystem v{}", AI_VERSION);
+    
+    // Initialize neural network engine
+    neural_net::init();
+    
+    // Initialize scheduler ML models
+    scheduler::init();
+    
+    // Initialize memory predictor
+    memory_predictor::init();
+    
+    // Initialize anomaly detector
+    anomaly_detector::init();
+    
+    // Initialize performance optimizer
+    optimizer::init();
+    
+    log::info!("AI/ML Subsystem initialized successfully");
+    log::info!("  - Neural Network Engine: Ready");
+    log::info!("  - ML Scheduler: Active");
+    log::info!("  - Memory Predictor: Active");
+    log::info!("  - Security Anomaly Detector: Active");
+    log::info!("  - Performance Optimizer: Active");
+}
+
+/// Get global AI statistics
+pub fn get_ai_stats() -> AIStats {
+    AIStats {
+        inference_count: INFERENCE_COUNT.load(Ordering::Relaxed),
+        training_iterations: TRAINING_ITERATIONS.load(Ordering::Relaxed),
+        prediction_accuracy: PREDICTION_ACCURACY.load(Ordering::Relaxed),
+    }
+}
+
+/// AI subsystem statistics
+#[derive(Debug, Clone)]
+pub struct AIStats {
+    pub inference_count: u64,
+    pub training_iterations: u64,
+    pub prediction_accuracy: u64,
+}
+
+impl core::fmt::Display for AIStats {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        writeln!(f, "AI/ML Statistics:")?;
+        writeln!(f, "  Total Inferences: {}", self.inference_count)?;
+        writeln!(f, "  Training Iterations: {}", self.training_iterations)?;
+        writeln!(f, "  Prediction Accuracy: {}%", self.prediction_accuracy)?;
+        Ok(())
+    }
+}
+
+/// Increment inference counter
+#[inline(always)]
+pub fn record_inference() {
+    INFERENCE_COUNT.fetch_add(1, Ordering::Relaxed);
+}
+
+/// Record training iteration
+#[inline(always)]
+pub fn record_training() {
+    TRAINING_ITERATIONS.fetch_add(1, Ordering::Relaxed);
+}
+
+/// Update prediction accuracy metric (0-100)
+#[inline(always)]
+pub fn update_accuracy(accuracy: u64) {
+    PREDICTION_ACCURACY.store(accuracy.min(100), Ordering::Relaxed);
+}
+
+/// Feature vector for ML models (fixed-size for no_std)
+#[derive(Debug, Clone)]
+pub struct FeatureVector {
+    data: [f32; 16],
+    len: usize,
+}
+
+impl FeatureVector {
+    pub fn new() -> Self {
+        Self {
+            data: [0.0; 16],
+            len: 0,
+        }
+    }
+    
+    pub fn push(&mut self, value: f32) -> Result<(), &'static str> {
+        if self.len >= 16 {
+            return Err("Feature vector full");
+        }
+        self.data[self.len] = value;
+        self.len += 1;
+        Ok(())
+    }
+    
+    pub fn as_slice(&self) -> &[f32] {
+        &self.data[..self.len]
+    }
+    
+    pub fn len(&self) -> usize {
+        self.len
+    }
+    
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+}
+
+impl Default for FeatureVector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Normalize a feature vector to [0, 1] range
+pub fn normalize(vector: &mut [f32]) {
+    if vector.is_empty() {
+        return;
+    }
+    
+    let mut min = vector[0];
+    let mut max = vector[0];
+    
+    for &val in vector.iter() {
+        if val < min {
+            min = val;
+        }
+        if val > max {
+            max = val;
+        }
+    }
+    
+    let range = max - min;
+    if range > 0.0 {
+        for val in vector.iter_mut() {
+            *val = (*val - min) / range;
+        }
+    }
+}
+
+/// Sigmoid activation function for neural networks
+#[inline]
+pub fn sigmoid(x: f32) -> f32 {
+    1.0 / (1.0 + (-x).exp())
+}
+
+/// ReLU activation function
+#[inline]
+pub fn relu(x: f32) -> f32 {
+    if x > 0.0 { x } else { 0.0 }
+}
+
+/// Softmax function for output layer
+pub fn softmax(values: &mut [f32]) {
+    let max = values.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+    let sum: f32 = values.iter().map(|&x| (x - max).exp()).sum();
+    for x in values.iter_mut() {
+        *x = (*x - max).exp() / sum;
+    }
+}

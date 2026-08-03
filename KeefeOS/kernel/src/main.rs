@@ -103,6 +103,13 @@ pub extern "C" fn kernel_start(
     println!("Initializing IDT...");
     interrupts::idt::init();
     
+    // Initialize AI/ML subsystem
+    println!("Initializing AI/ML Subsystem...");
+    keefeos_kernel::ai::init();
+    
+    // Initialize global neural network for kernel-wide use
+    keefeos_kernel::ai::neural_net::init_global_nn();
+    
     println!("\n========================================");
     println!("KeefeOS Microkernel initialized successfully!");
     println!("========================================");
@@ -110,6 +117,12 @@ pub extern "C" fn kernel_start(
     println!("  - GDT/TSS: Active ({} descriptors)", 5);
     println!("  - IDT: Active (48 handlers: 22 exceptions + 16 IRQs)");
     println!("  - Double Fault Protection: IST-enabled");
+    println!("  - AI/ML Subsystem: Active");
+    println!("    * Neural Network Engine: Ready");
+    println!("    * ML Scheduler: Standby");
+    println!("    * Memory Predictor: Standby");
+    println!("    * Anomaly Detector: Active");
+    println!("    * Performance Optimizer: Active");
     println!("\nSystem halted. Press reset to restart.");
     
     // Halt the CPU indefinitely
