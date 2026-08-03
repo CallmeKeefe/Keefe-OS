@@ -23,7 +23,7 @@ pub mod vulnerability_scanner;
 pub mod attack_detector;
 pub mod secure_boot;
 
-static mut SECURITY_INITIALIZED: AtomicBool = AtomicBool::new(false);
+static SECURITY_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static SECURITY_EVENTS_LOGGED: AtomicU64 = AtomicU64::new(0);
 static ATTACKS_BLOCKED: AtomicU64 = AtomicU64::new(0);
 static VULNERABILITIES_PATCHED: AtomicU64 = AtomicU64::new(0);
@@ -50,9 +50,7 @@ pub fn init() -> Result<(), &'static str> {
     // Initialize attack detector
     attack_detector::init();
     
-    unsafe {
-        SECURITY_INITIALIZED.store(true, Ordering::Release);
-    }
+    SECURITY_INITIALIZED.store(true, Ordering::Release);
     
     log::info!("Security Subsystem initialized successfully");
     log::info!("  - Secure Boot: Verified");
@@ -67,7 +65,7 @@ pub fn init() -> Result<(), &'static str> {
 
 /// Check if security subsystem is initialized
 pub fn is_initialized() -> bool {
-    unsafe { SECURITY_INITIALIZED.load(Ordering::Acquire) }
+    SECURITY_INITIALIZED.load(Ordering::Acquire)
 }
 
 /// Get security statistics

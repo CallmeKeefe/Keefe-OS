@@ -17,21 +17,19 @@
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use alloc::vec::Vec;
 
-static mut DETECTOR_INITIALIZED: AtomicBool = AtomicBool::new(false);
+static DETECTOR_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static ANOMALIES_DETECTED: AtomicU64 = AtomicU64::new(0);
 static FALSE_POSITIVES: AtomicU64 = AtomicU64::new(0);
 
 /// Initialize the anomaly detector
 pub fn init() {
-    unsafe {
-        DETECTOR_INITIALIZED.store(true, Ordering::Release);
-    }
+    DETECTOR_INITIALIZED.store(true, Ordering::Release);
     log::info!("AI-powered anomaly detector initialized");
 }
 
 /// Check if detector is initialized
 pub fn is_initialized() -> bool {
-    unsafe { DETECTOR_INITIALIZED.load(Ordering::Acquire) }
+    DETECTOR_INITIALIZED.load(Ordering::Acquire)
 }
 
 /// Security-relevant system metrics

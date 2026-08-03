@@ -13,9 +13,9 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU64, Ordering;
 
-static mut DETECTOR_INITIALIZED: AtomicBool = AtomicBool::new(false);
+static DETECTOR_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static ATTACKS_DETECTED: AtomicU64 = AtomicU64::new(0);
 static ATTACKS_MITIGATED: AtomicU64 = AtomicU64::new(0);
 
@@ -32,7 +32,7 @@ pub struct AttackVector {
     pub timestamp: u64,
     pub mitigated: bool,
     pub response_action: ResponseAction,
-}
+
 
 /// Threat levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,7 +41,7 @@ pub enum ThreatLevel {
     Medium,
     High,
     Critical,
-}
+
 
 /// Types of attacks
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,7 +56,7 @@ pub enum AttackType {
     RaceCondition,
     MemoryCorruption,
     CodeInjection,
-}
+
 
 /// Automated response actions
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,7 +68,7 @@ pub enum ResponseAction {
     Terminate,
     Block,
     Quarantine,
-}
+
 
 impl AttackVector {
     /// Create a new attack detection record
@@ -84,52 +84,52 @@ impl AttackVector {
             timestamp: get_timestamp(),
             mitigated: false,
             response_action: ResponseAction::Log,
-        }
-    }
+
+
     
     /// Set the attack type
     pub fn with_type(mut self, attack_type: AttackType) -> Self {
         self.attack_type = attack_type;
         self
-    }
+
     
     /// Set source and target
     pub fn with_source_target(mut self, source: &str, target: &str) -> Self {
         self.source = String::from(source);
         self.target = String::from(target);
         self
-    }
+
     
     /// Set response action
     pub fn with_response(mut self, action: ResponseAction) -> Self {
         self.response_action = action;
         self
-    }
+
     
     /// Mark as mitigated
     pub fn mark_mitigated(&mut self) {
         self.mitigated = true;
-    }
-}
+
+
 
 /// Initialize the attack detector
 pub fn init() {
-    unsafe {
+    
         DETECTOR_INITIALIZED.store(true, Ordering::Release);
-    }
+
     log::info!("Attack detection system initialized");
-}
+
 
 /// Check if detector is initialized
 pub fn is_initialized() -> bool {
-    unsafe { DETECTOR_INITIALIZED.load(Ordering::Acquire) }
-}
+    DETECTOR_INITIALIZED.load(Ordering::Acquire)
+
 
 /// Scan for active attacks
 pub fn scan_for_attacks() -> Vec<AttackVector> {
     if !is_initialized() {
         return Vec::new();
-    }
+
     
     let mut attacks = Vec::new();
     
@@ -147,13 +147,13 @@ pub fn scan_for_attacks() -> Vec<AttackVector> {
     for attack in &mut attacks {
         if auto_mitigate(attack) {
             ATTACKS_MITIGATED.fetch_add(1, Ordering::Relaxed);
-        }
-    }
+
+
     
-    log::info!("Attack scan complete: {} detected", attacks.len());
+    log::info!("Attack scan complete: { detected", attacks.len());
     
     attacks
-}
+
 
 /// Scan for buffer overflow attempts
 fn scan_buffer_overflow_attempts() -> Vec<AttackVector> {
@@ -176,7 +176,7 @@ fn scan_buffer_overflow_attempts() -> Vec<AttackVector> {
     );
     
     attacks
-}
+
 
 /// Scan for privilege escalation attempts
 fn scan_privilege_escalation() -> Vec<AttackVector> {
@@ -198,7 +198,7 @@ fn scan_privilege_escalation() -> Vec<AttackVector> {
     );
     
     attacks
-}
+
 
 /// Scan for side-channel attacks
 fn scan_side_channel_attacks() -> Vec<AttackVector> {
@@ -220,7 +220,7 @@ fn scan_side_channel_attacks() -> Vec<AttackVector> {
     );
     
     attacks
-}
+
 
 /// Scan for injection attempts
 fn scan_injection_attempts() -> Vec<AttackVector> {
@@ -242,7 +242,7 @@ fn scan_injection_attempts() -> Vec<AttackVector> {
     );
     
     attacks
-}
+
 
 /// Scan for DoS attempts
 fn scan_dos_attempts() -> Vec<AttackVector> {
@@ -264,47 +264,47 @@ fn scan_dos_attempts() -> Vec<AttackVector> {
     );
     
     attacks
-}
+
 
 /// Automatically mitigate detected attacks
 fn auto_mitigate(attack: &mut AttackVector) -> bool {
     match attack.response_action {
         ResponseAction::Log => {
-            log::warn!("[ATTACK] Logged: {}", attack.name);
+            log::warn!("[ATTACK] Logged: {", attack.name);
             true
-        }
+
         ResponseAction::Alert => {
-            log::error!("[ATTACK ALERT] {}: {}", attack.name, attack.description);
+            log::error!("[ATTACK ALERT] {: {", attack.name, attack.description);
             attack.mark_mitigated();
             true
-        }
+
         ResponseAction::Throttle => {
-            log::warn!("[ATTACK] Throttling source: {}", attack.source);
+            log::warn!("[ATTACK] Throttling source: {", attack.source);
             attack.mark_mitigated();
             true
-        }
+
         ResponseAction::Isolate => {
-            log::error!("[ATTACK] Isolating threat from: {}", attack.source);
+            log::error!("[ATTACK] Isolating threat from: {", attack.source);
             attack.mark_mitigated();
             true
-        }
+
         ResponseAction::Terminate => {
-            log::error!("[ATTACK] Terminating threat: {}", attack.source);
+            log::error!("[ATTACK] Terminating threat: {", attack.source);
             attack.mark_mitigated();
             true
-        }
+
         ResponseAction::Block => {
-            log::error!("[ATTACK] Blocking attack: {}", attack.name);
+            log::error!("[ATTACK] Blocking attack: {", attack.name);
             attack.mark_mitigated();
             true
-        }
+
         ResponseAction::Quarantine => {
-            log::error!("[ATTACK] Quarantining threat: {}", attack.source);
+            log::error!("[ATTACK] Quarantining threat: {", attack.source);
             attack.mark_mitigated();
             true
-        }
-    }
-}
+
+
+
 
 /// Get detector statistics
 pub fn get_stats() -> (u64, u64) {
@@ -312,7 +312,7 @@ pub fn get_stats() -> (u64, u64) {
         ATTACKS_DETECTED.load(Ordering::Relaxed),
         ATTACKS_MITIGATED.load(Ordering::Relaxed),
     )
-}
+
 
 /// Generate threat report
 pub fn generate_threat_report(attacks: &[AttackVector]) -> ThreatReport {
@@ -328,12 +328,12 @@ pub fn generate_threat_report(attacks: &[AttackVector]) -> ThreatReport {
             ThreatLevel::High => high += 1,
             ThreatLevel::Medium => medium += 1,
             ThreatLevel::Low => low += 1,
-        }
+
         
         if attack.mitigated {
             mitigated += 1;
-        }
-    }
+
+
     
     ThreatReport {
         total: attacks.len(),
@@ -343,8 +343,8 @@ pub fn generate_threat_report(attacks: &[AttackVector]) -> ThreatReport {
         low,
         mitigated,
         threat_level: calculate_overall_threat_level(critical, high, medium, low),
-    }
-}
+
+
 
 /// Threat assessment report
 #[derive(Debug, Clone)]
@@ -356,35 +356,35 @@ pub struct ThreatReport {
     pub low: usize,
     pub mitigated: usize,
     pub threat_level: ThreatLevel,
-}
+
 
 impl core::fmt::Display for ThreatReport {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         writeln!(f, "=== Threat Report ===")?;
-        writeln!(f, "Total Attacks: {}", self.total)?;
-        writeln!(f, "  Critical: {}", self.critical)?;
-        writeln!(f, "  High: {}", self.high)?;
-        writeln!(f, "  Medium: {}", self.medium)?;
-        writeln!(f, "  Low: {}", self.low)?;
-        writeln!(f, "Mitigated: {}", self.mitigated)?;
-        writeln!(f, "Overall Threat Level: {:?}", self.threat_level)?;
+        writeln!(f, "Total Attacks: {", self.total)?;
+        writeln!(f, "  Critical: {", self.critical)?;
+        writeln!(f, "  High: {", self.high)?;
+        writeln!(f, "  Medium: {", self.medium)?;
+        writeln!(f, "  Low: {", self.low)?;
+        writeln!(f, "Mitigated: {", self.mitigated)?;
+        writeln!(f, "Overall Threat Level: {:?", self.threat_level)?;
         Ok(())
-    }
-}
+
+
 
 /// Calculate overall threat level
 fn calculate_overall_threat_level(critical: usize, high: usize, _medium: usize, _low: usize) -> ThreatLevel {
     if critical > 0 {
         ThreatLevel::Critical
-    } else if high > 0 {
+ else if high > 0 {
         ThreatLevel::High
-    } else {
+ else {
         ThreatLevel::Medium
-    }
-}
+
+
 
 /// Get current timestamp
 fn get_timestamp() -> u64 {
     static TIMESTAMP: AtomicU64 = AtomicU64::new(0);
     TIMESTAMP.fetch_add(1, Ordering::Relaxed)
-}
+

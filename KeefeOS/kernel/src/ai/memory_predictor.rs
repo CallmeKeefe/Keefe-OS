@@ -11,24 +11,24 @@
 
 #![no_std]
 
-use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU64, Ordering;
 use alloc::vec::Vec;
 
-static mut PREDICTOR_INITIALIZED: AtomicBool = AtomicBool::new(false);
+static PREDICTOR_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static PAGE_FAULTS_PREVENTED: AtomicU64 = AtomicU64::new(0);
 
 /// Initialize the memory predictor
 pub fn init() {
-    unsafe {
+    
         PREDICTOR_INITIALIZED.store(true, Ordering::Release);
-    }
+
     log::info!("Predictive memory manager initialized");
-}
+
 
 /// Check if predictor is initialized
 pub fn is_initialized() -> bool {
-    unsafe { PREDICTOR_INITIALIZED.load(Ordering::Acquire) }
-}
+    PREDICTOR_INITIALIZED.load(Ordering::Acquire)
+
 
 /// Memory access pattern features
 #[derive(Debug, Clone, Default)]
@@ -40,12 +40,12 @@ pub struct MemoryPattern {
     pub write_ratio: f32,          // 0.0 - 1.0
     pub access_frequency: f32,     // Normalized accesses per second
     pub page_age_ms: u64,          // Time since last access
-}
+
 
 impl MemoryPattern {
     pub fn new() -> Self {
         Self::default()
-    }
+
     
     /// Convert to feature vector
     pub fn to_vector(&self) -> [f32; 7] {
@@ -58,8 +58,8 @@ impl MemoryPattern {
             self.access_frequency,
             ((self.page_age_ms % 10000) as f32) / 10000.0,
         ]
-    }
-}
+
+
 
 /// Prefetch recommendation
 #[derive(Debug, Clone)]
@@ -68,7 +68,7 @@ pub struct PrefetchRecommendation {
     pub pages_to_prefetch: u8,
     pub confidence: f32,
     pub predicted_addresses: [u64; 4],
-}
+
 
 impl Default for PrefetchRecommendation {
     fn default() -> Self {
@@ -77,15 +77,15 @@ impl Default for PrefetchRecommendation {
             pages_to_prefetch: 0,
             confidence: 0.0,
             predicted_addresses: [0; 4],
-        }
-    }
-}
+
+
+
 
 /// Predict if a page fault will occur and recommend prefetching
 pub fn predict_page_fault(current_addr: u64, pattern: &MemoryPattern) -> PrefetchRecommendation {
     if !is_initialized() {
         return PrefetchRecommendation::default();
-    }
+
     
     let feature_vector = pattern.to_vector();
     
@@ -99,32 +99,32 @@ pub fn predict_page_fault(current_addr: u64, pattern: &MemoryPattern) -> Prefetc
     
     let mut rec = PrefetchRecommendation {
         should_prefetch,
-        pages_to_prefetch: if should_prefetch { 4 } else { 0 },
+        pages_to_prefetch: if should_prefetch { 4 else { 0,
         confidence: fault_probability,
         predicted_addresses: [0; 4],
-    };
+;
     
     // Predict next addresses based on stride
     if pattern.sequential_access > 0.7 {
         let stride = pattern.stride as u64;
         for i in 0..4 {
             rec.predicted_addresses[i] = current_addr + (stride * (i as u64 + 1));
-        }
+
         
         if should_prefetch {
             PAGE_FAULTS_PREVENTED.fetch_add(rec.pages_to_prefetch as u64, Ordering::Relaxed);
-        }
-    }
+
+
     
     rec
-}
+
 
 /// Decide which page to evict using ML-based scoring
 pub fn score_page_for_eviction(pattern: &MemoryPattern) -> f32 {
     if !is_initialized() {
         // Fallback to simple LRU-like scoring
         return 1.0 - pattern.temporal_locality;
-    }
+
     
     let feature_vector = pattern.to_vector();
     
@@ -132,18 +132,18 @@ pub fn score_page_for_eviction(pattern: &MemoryPattern) -> f32 {
     let score = if let Some(nn) = crate::ai::neural_net::get_global_nn() {
         let output = nn.predict(&feature_vector);
         output[1] // Second output node represents eviction score
-    } else {
+ else {
         0.5
-    };
+;
     
     score
-}
+
 
 /// Estimate working set size based on access patterns
 pub fn estimate_working_set(patterns: &[MemoryPattern]) -> usize {
     if patterns.is_empty() {
         return 0;
-    }
+
     
     let avg_locality: f32 = patterns.iter()
         .map(|p| (p.temporal_locality + p.spatial_locality) / 2.0)
@@ -154,13 +154,13 @@ pub fn estimate_working_set(patterns: &[MemoryPattern]) -> usize {
     
     // Estimate: assume 1000 total pages, adjust by locality
     (1000.0 * working_set_factor) as usize
-}
+
 
 /// Forecast memory pressure (0.0 = low, 1.0 = critical)
 pub fn forecast_memory_pressure(recent_patterns: &[MemoryPattern]) -> f32 {
     if recent_patterns.is_empty() {
         return 0.5;
-    }
+
     
     // Analyze trends in access frequency and page age
     let avg_frequency: f32 = recent_patterns.iter()
@@ -174,18 +174,18 @@ pub fn forecast_memory_pressure(recent_patterns: &[MemoryPattern]) -> f32 {
     // High frequency + low age = increasing pressure
     let pressure = (avg_frequency * 0.6) + ((1.0 - (avg_age / 10000.0)) * 0.4);
     pressure.min(1.0).max(0.0)
-}
+
 
 /// Get statistics about prevented page faults
 pub fn get_prevented_faults() -> u64 {
     PAGE_FAULTS_PREVENTED.load(Ordering::Relaxed)
-}
+
 
 /// Record a successful prefetch prediction
 pub fn record_successful_prefetch() {
     PAGE_FAULTS_PREVENTED.fetch_add(1, Ordering::Relaxed);
     crate::ai::record_training();
-}
+
 
 /// Memory predictor statistics
 #[derive(Debug, Clone, Default)]
@@ -193,14 +193,14 @@ pub struct MemoryStats {
     pub faults_prevented: u64,
     pub prefetch_accuracy: u8,
     pub avg_working_set_pages: usize,
-}
+
 
 impl core::fmt::Display for MemoryStats {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         writeln!(f, "Predictive Memory Statistics:")?;
-        writeln!(f, "  Page Faults Prevented: {}", self.faults_prevented)?;
-        writeln!(f, "  Prefetch Accuracy: {}%", self.prefetch_accuracy)?;
-        writeln!(f, "  Avg Working Set: {} pages", self.avg_working_set_pages)?;
+        writeln!(f, "  Page Faults Prevented: {", self.faults_prevented)?;
+        writeln!(f, "  Prefetch Accuracy: {%", self.prefetch_accuracy)?;
+        writeln!(f, "  Avg Working Set: { pages", self.avg_working_set_pages)?;
         Ok(())
-    }
-}
+
+

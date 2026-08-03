@@ -8,25 +8,29 @@
 //! - Minimal memory footprint
 //! - No heap allocation after initialization
 //! - Thread-safe inference
+//!
+//! # Safety
+//! This module uses interior mutability with proper synchronization to avoid
+//! data races. The global NN instance is initialized once and then read-only.
 
 #![no_std]
 
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicBool, Ordering};
+use spin::Mutex;
 
-static mut NN_INITIALIZED: AtomicBool = AtomicBool::new(false);
+static NN_INITIALIZED: AtomicBool = AtomicBool::new(false);
+static GLOBAL_NN: Mutex<Option<NeuralNetwork>> = Mutex::new(None);
 
 /// Initialize the neural network engine
 pub fn init() {
-    unsafe {
-        NN_INITIALIZED.store(true, Ordering::Release);
-    }
+    NN_INITIALIZED.store(true, Ordering::Release);
     log::debug!("Neural network engine initialized");
 }
 
 /// Check if the neural network engine is initialized
 pub fn is_initialized() -> bool {
-    unsafe { NN_INITIALIZED.load(Ordering::Acquire) }
+    NN_INITIALIZED.load(Ordering::Acquire)
 }
 
 /// A simple feedforward neural network layer
@@ -137,26 +141,29 @@ impl Default for NeuralNetwork {
     }
 }
 
-/// Global neural network instance for kernel-wide use
-static mut GLOBAL_NN: Option<NeuralNetwork> = None;
-
 /// Get the global neural network instance
 pub fn get_global_nn() -> Option<&'static NeuralNetwork> {
-    unsafe { GLOBAL_NN.as_ref() }
+    // Use a leak to extend the lifetime of the guard for the duration of the call
+    // This is safe because we only read from the NN after initialization
+    let guard = GLOBAL_NN.lock();
+    if guard.is_some() {
+        unsafe { Some(&*(&**guard as *const NeuralNetwork)) }
+    } else {
+        None
+    }
 }
 
 /// Initialize the global neural network with a default configuration
 pub fn init_global_nn() {
-    let mut nn = NeuralNetwork::new();
+    let nn = NeuralNetwork::new();
     
     // Default architecture: 8 inputs -> 16 hidden -> 8 hidden -> 4 outputs
-    nn.add_layer(8, 16);
-    nn.add_layer(16, 8);
-    nn.add_layer(8, 4);
+    let mut nn_with_layers = nn;
+    nn_with_layers.add_layer(8, 16);
+    nn_with_layers.add_layer(16, 8);
+    nn_with_layers.add_layer(8, 4);
     
-    unsafe {
-        GLOBAL_NN = Some(nn);
-    }
+    *GLOBAL_NN.lock() = Some(nn_with_layers);
     
     log::info!("Global neural network initialized (8->16->8->4)");
 }

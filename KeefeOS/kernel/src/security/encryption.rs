@@ -10,7 +10,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicBool, Ordering};
 
-static mut ENCRYPTION_INITIALIZED: AtomicBool = AtomicBool::new(false);
+static ENCRYPTION_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 /// Encryption key (256-bit for AES, 256-bit for ChaCha20)
 #[derive(Debug, Clone)]
@@ -60,15 +60,13 @@ impl EncryptionKey {
 
 /// Initialize the encryption engine
 pub fn init() {
-    unsafe {
-        ENCRYPTION_INITIALIZED.store(true, Ordering::Release);
-    }
+    ENCRYPTION_INITIALIZED.store(true, Ordering::Release);
     log::info!("Encryption engine initialized (AES-256-GCM + ChaCha20-Poly1305)");
 }
 
 /// Check if encryption engine is initialized
 pub fn is_initialized() -> bool {
-    unsafe { ENCRYPTION_INITIALIZED.load(Ordering::Acquire) }
+    ENCRYPTION_INITIALIZED.load(Ordering::Acquire)
 }
 
 /// Encrypt data with authenticated encryption
