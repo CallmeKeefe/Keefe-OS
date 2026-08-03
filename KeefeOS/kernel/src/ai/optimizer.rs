@@ -11,25 +11,25 @@
 
 #![no_std]
 
-use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU64, Ordering;
 use alloc::vec::Vec;
 
-static mut OPTIMIZER_INITIALIZED: AtomicBool = AtomicBool::new(false);
+static OPTIMIZER_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static OPTIMIZATION_CYCLES: AtomicU64 = AtomicU64::new(0);
 static PERFORMANCE_IMPROVEMENTS: AtomicU64 = AtomicU64::new(0);
 
 /// Initialize the performance optimizer
 pub fn init() {
-    unsafe {
+    
         OPTIMIZER_INITIALIZED.store(true, Ordering::Release);
-    }
+
     log::info!("Self-optimizing performance tuner initialized");
-}
+
 
 /// Check if optimizer is initialized
 pub fn is_initialized() -> bool {
-    unsafe { OPTIMIZER_INITIALIZED.load(Ordering::Acquire) }
-}
+    OPTIMIZER_INITIALIZED.load(Ordering::Acquire)
+
 
 /// System performance metrics
 #[derive(Debug, Clone, Default)]
@@ -42,12 +42,12 @@ pub struct PerformanceMetrics {
     pub branch_prediction_accuracy: f32, // 0.0 - 1.0
     pub power_consumption: f32,    // Normalized power draw
     pub temperature: f32,          // Normalized thermal reading
-}
+
 
 impl PerformanceMetrics {
     pub fn new() -> Self {
         Self::default()
-    }
+
     
     /// Convert to feature vector
     pub fn to_vector(&self) -> [f32; 8] {
@@ -61,8 +61,8 @@ impl PerformanceMetrics {
             self.power_consumption,
             self.temperature,
         ]
-    }
-}
+
+
 
 /// Kernel tunable parameters
 #[derive(Debug, Clone)]
@@ -74,7 +74,7 @@ pub struct KernelTunables {
     pub swappiness: u8,              // 0-100
     pub vm_overcommit: bool,
     pub preempt_enable: bool,
-}
+
 
 impl Default for KernelTunables {
     fn default() -> Self {
@@ -86,9 +86,9 @@ impl Default for KernelTunables {
             swappiness: 60,
             vm_overcommit: true,
             preempt_enable: true,
-        }
-    }
-}
+
+
+
 
 /// Optimization recommendation
 #[derive(Debug, Clone)]
@@ -98,7 +98,7 @@ pub struct OptimizationRecommendation {
     pub recommended_value: i32,
     pub expected_improvement: f32, // Percentage
     pub confidence: f32,
-}
+
 
 /// Workload classification
 #[derive(Debug, Clone, PartialEq)]
@@ -110,13 +110,13 @@ pub enum WorkloadType {
     Interactive,
     Mixed,
     RealTime,
-}
+
 
 /// Classify the current workload pattern
 pub fn classify_workload(metrics: &PerformanceMetrics) -> WorkloadType {
     if !is_initialized() {
         return WorkloadType::Unknown;
-    }
+
     
     let feature_vector = metrics.to_vector();
     
@@ -132,8 +132,8 @@ pub fn classify_workload(metrics: &PerformanceMetrics) -> WorkloadType {
         if val > max_val {
             max_val = val;
             max_idx = i;
-        }
-    }
+
+
     
     match max_idx {
         0 => WorkloadType::ComputeBound,
@@ -143,8 +143,8 @@ pub fn classify_workload(metrics: &PerformanceMetrics) -> WorkloadType {
         4 => WorkloadType::Mixed,
         5 => WorkloadType::RealTime,
         _ => WorkloadType::Unknown,
-    }
-}
+
+
 
 /// Generate optimization recommendations based on workload
 pub fn optimize(workload: &WorkloadType, metrics: &PerformanceMetrics) -> Vec<OptimizationRecommendation, 8> {
@@ -159,7 +159,7 @@ pub fn optimize(workload: &WorkloadType, metrics: &PerformanceMetrics) -> Vec<Op
                 recommended_value: 50,
                 expected_improvement: 15.0,
                 confidence: 0.85,
-            });
+);
             
             if metrics.cache_hit_ratio < 0.8 {
                 recommendations.push(OptimizationRecommendation {
@@ -168,9 +168,9 @@ pub fn optimize(workload: &WorkloadType, metrics: &PerformanceMetrics) -> Vec<Op
                     recommended_value: 256,
                     expected_improvement: 10.0,
                     confidence: 0.75,
-                });
-            }
-        },
+);
+
+,
         
         WorkloadType::MemoryBound => {
             // Optimize for memory-intensive workloads
@@ -180,7 +180,7 @@ pub fn optimize(workload: &WorkloadType, metrics: &PerformanceMetrics) -> Vec<Op
                 recommended_value: 50,
                 expected_improvement: 20.0,
                 confidence: 0.80,
-            });
+);
             
             recommendations.push(OptimizationRecommendation {
                 target_parameter: "swappiness",
@@ -188,8 +188,8 @@ pub fn optimize(workload: &WorkloadType, metrics: &PerformanceMetrics) -> Vec<Op
                 recommended_value: 80,
                 expected_improvement: 12.0,
                 confidence: 0.78,
-            });
-        },
+);
+,
         
         WorkloadType::IOBound => {
             // Optimize for I/O-intensive workloads
@@ -199,7 +199,7 @@ pub fn optimize(workload: &WorkloadType, metrics: &PerformanceMetrics) -> Vec<Op
                 recommended_value: 512,
                 expected_improvement: 25.0,
                 confidence: 0.88,
-            });
+);
             
             recommendations.push(OptimizationRecommendation {
                 target_parameter: "dirty_ratio",
@@ -207,8 +207,8 @@ pub fn optimize(workload: &WorkloadType, metrics: &PerformanceMetrics) -> Vec<Op
                 recommended_value: 40,
                 expected_improvement: 15.0,
                 confidence: 0.82,
-            });
-        },
+);
+,
         
         WorkloadType::Interactive => {
             // Optimize for responsiveness
@@ -218,7 +218,7 @@ pub fn optimize(workload: &WorkloadType, metrics: &PerformanceMetrics) -> Vec<Op
                 recommended_value: 10,
                 expected_improvement: 30.0,
                 confidence: 0.90,
-            });
+);
             
             recommendations.push(OptimizationRecommendation {
                 target_parameter: "preempt_enable",
@@ -226,8 +226,8 @@ pub fn optimize(workload: &WorkloadType, metrics: &PerformanceMetrics) -> Vec<Op
                 recommended_value: 1,
                 expected_improvement: 0.0,
                 confidence: 1.0,
-            });
-        },
+);
+,
         
         WorkloadType::RealTime => {
             // Optimize for low latency
@@ -237,8 +237,8 @@ pub fn optimize(workload: &WorkloadType, metrics: &PerformanceMetrics) -> Vec<Op
                 recommended_value: 5,
                 expected_improvement: 40.0,
                 confidence: 0.92,
-            });
-        },
+);
+,
         
         _ => {
             // Default conservative tuning
@@ -248,16 +248,16 @@ pub fn optimize(workload: &WorkloadType, metrics: &PerformanceMetrics) -> Vec<Op
                 recommended_value: 20,
                 expected_improvement: 0.0,
                 confidence: 1.0,
-            });
-        },
-    }
+);
+,
+
     
     recommendations
-}
+
 
 /// Apply a tunable parameter change
 pub fn apply_tunable(parameter: &str, value: i32) -> bool {
-    log::debug!("Applying tunable: {} = {}", parameter, value);
+    log::debug!("Applying tunable: { = {", parameter, value);
     
     // In a real implementation, this would modify kernel state
     // For now, we just log the change
@@ -267,7 +267,7 @@ pub fn apply_tunable(parameter: &str, value: i32) -> bool {
     crate::ai::record_training();
     
     true
-}
+
 
 /// Run an optimization cycle
 pub fn optimization_cycle(metrics: &PerformanceMetrics) -> OptimizationStats {
@@ -277,15 +277,15 @@ pub fn optimization_cycle(metrics: &PerformanceMetrics) -> OptimizationStats {
     // Apply top recommendation
     if let Some(rec) = recommendations.first() {
         apply_tunable(rec.target_parameter, rec.recommended_value);
-    }
+
     
     OptimizationStats {
         cycles_completed: OPTIMIZATION_CYCLES.load(Ordering::Relaxed),
         improvements_made: PERFORMANCE_IMPROVEMENTS.load(Ordering::Relaxed),
         current_workload: workload,
         active_recommendations: recommendations.len() as u8,
-    }
-}
+
+
 
 #[derive(Debug, Clone)]
 pub struct OptimizationStats {
@@ -293,18 +293,18 @@ pub struct OptimizationStats {
     pub improvements_made: u64,
     pub current_workload: WorkloadType,
     pub active_recommendations: u8,
-}
+
 
 impl core::fmt::Display for OptimizationStats {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         writeln!(f, "Performance Optimizer Statistics:")?;
-        writeln!(f, "  Optimization Cycles: {}", self.cycles_completed)?;
-        writeln!(f, "  Improvements Made: {}", self.improvements_made)?;
-        writeln!(f, "  Current Workload: {:?}", self.current_workload)?;
-        writeln!(f, "  Active Recommendations: {}", self.active_recommendations)?;
+        writeln!(f, "  Optimization Cycles: {", self.cycles_completed)?;
+        writeln!(f, "  Improvements Made: {", self.improvements_made)?;
+        writeln!(f, "  Current Workload: {:?", self.current_workload)?;
+        writeln!(f, "  Active Recommendations: {", self.active_recommendations)?;
         Ok(())
-    }
-}
+
+
 
 /// Get energy-efficiency score (0-100)
 pub fn calculate_efficiency_score(metrics: &PerformanceMetrics) -> u8 {
@@ -317,4 +317,4 @@ pub fn calculate_efficiency_score(metrics: &PerformanceMetrics) -> u8 {
     
     let score = (performance * 0.7 + power_efficiency * 0.3) * 100.0;
     score.min(100.0) as u8
-}
+
