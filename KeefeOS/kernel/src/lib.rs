@@ -6,6 +6,7 @@
 //! - Virtual memory management (page tables)
 //! - Interrupt handling (GDT, IDT, exceptions)
 //! - Capability-based security primitives
+//! - AI/ML-powered intelligent subsystems
 //!
 //! # Safety Guarantees
 //!
@@ -30,6 +31,7 @@ pub mod arch;
 pub mod memory;
 pub mod console;
 pub mod interrupts;
+pub mod ai;
 
 /// Kernel version information
 pub const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -42,6 +44,9 @@ pub fn init() {
     
     // Initialize memory subsystem
     memory::init();
+    
+    // Initialize AI/ML subsystem
+    ai::init();
     
     log::info!("KeefeOS initialization complete");
 }
