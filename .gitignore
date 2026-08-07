@@ -1,1 +1,4 @@
-Nothing needs to be added to .gitignore since the changes only include markdown documentation files (.md) which are source/config files and should not be ignored.
+```
+# Security audit documentation
+KeefeOS/SECURITY_AUDIT_AND_IMPROVEMENTS.md
+```
