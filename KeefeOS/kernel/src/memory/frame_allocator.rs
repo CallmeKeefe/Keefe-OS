@@ -325,8 +325,14 @@ impl PhysicalFrameAllocator {
         let words_needed = total_frames.saturating_add(63) / 64;
         for (word_idx, word) in bitmap.iter().take(words_needed).enumerate() {
             let valid_frames = total_frames.saturating_sub(word_idx * 64).min(64);
-            // Ignore bitmap padding beyond the highest usable physical frame.
-            count += (word.count_ones() as usize).min(valid_frames);
+            // Mask padding bits before counting: the bitmap starts with all bits
+            // reserved, including bits beyond total_frames in the final word.
+            let valid_mask = match valid_frames {
+                0 => 0,
+                64 => u64::MAX,
+                n => (1u64 << n) - 1,
+            };
+            count += (word & valid_mask).count_ones() as usize;
         }
         count
     }
@@ -408,6 +414,15 @@ mod tests {
         assert_eq!(alloc.free_count(), before);
         alloc.deallocate(addr);
         assert_eq!(alloc.free_count(), before + 1);
+    }
+
+    #[test]
+    fn padding_bits_do_not_count_as_managed_frames() {
+        let map = [region(UEFIMemoryType::CONVENTIONAL, 0x10_0000, 0x3000)];
+        let alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
+        assert_eq!(alloc.total_frames(), (0x103000usize + FRAME_SIZE - 1) / FRAME_SIZE);
+        assert_eq!(alloc.allocated_count() + alloc.free_count(), alloc.total_frames());
+        assert_eq!(alloc.free_count(), 2);
     }
 
     #[test]

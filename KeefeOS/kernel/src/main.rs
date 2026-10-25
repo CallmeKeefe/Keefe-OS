@@ -140,7 +140,10 @@ pub extern "C" fn kernel_start(
     println!("GDT/TSS: initialized; user-mode support is not implemented");
     println!("CPU exception table: initialized; device IRQ routing is disabled");
     println!("Security status: INCOMPLETE; no production security boundary");
-    println!("KEEFEOS-KERNEL-BOOT-OK");
+    // Do not emit the CI boot-success marker until the UEFI loader actually
+    // validates the ELF, constructs BootInfo, exits boot services, and transfers
+    // control to this entry point.
+    println!("Boot milestone withheld: validated loader handoff is not implemented.");
     println!("Entering halt loop.");
 
     // Halt the CPU indefinitely
