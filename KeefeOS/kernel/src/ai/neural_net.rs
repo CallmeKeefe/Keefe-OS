@@ -142,15 +142,8 @@ impl Default for NeuralNetwork {
 }
 
 /// Get the global neural network instance
-pub fn get_global_nn() -> Option<&'static NeuralNetwork> {
-    // Use a leak to extend the lifetime of the guard for the duration of the call
-    // This is safe because we only read from the NN after initialization
-    let guard = GLOBAL_NN.lock();
-    if guard.is_some() {
-        unsafe { Some(&*(&**guard as *const NeuralNetwork)) }
-    } else {
-        None
-    }
+pub fn get_global_nn() -> Option<NeuralNetwork> {
+    GLOBAL_NN.lock().as_ref().cloned()
 }
 
 /// Initialize the global neural network with a default configuration

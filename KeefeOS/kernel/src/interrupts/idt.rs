@@ -45,7 +45,6 @@ pub fn init() {
     idt.machine_check.set_handler_fn(fatal_no_error);
     idt.simd_floating_point.set_handler_fn(fatal_no_error);
     idt.virtualization.set_handler_fn(fatal_no_error);
-    idt.control_protection_exception.set_handler_fn(fatal_with_error);
 
     let idt_ref: &'static InterruptDescriptorTable = Box::leak(Box::new(idt));
     // SAFETY: idt_ref is leaked and remains valid for the kernel lifetime.
@@ -54,19 +53,19 @@ pub fn init() {
     println!("  [IDT] CPU exception table loaded; device IRQ routing is not enabled");
 }
 
-extern "x86-interrupt" fn fatal_no_error(frame: InterruptStackFrame) -> ! {
+extern "x86-interrupt" fn fatal_no_error(frame: InterruptStackFrame) {
     println!("FATAL: unhandled CPU exception");
     println!("RIP={:#018x}", frame.instruction_pointer.as_u64());
-    fatal_halt()
+    fatal_halt();
 }
 
 extern "x86-interrupt" fn fatal_with_error(
     frame: InterruptStackFrame,
     error_code: u64,
-) -> ! {
+) {
     println!("FATAL: CPU exception, error code={:#x}", error_code);
     println!("RIP={:#018x}", frame.instruction_pointer.as_u64());
-    fatal_halt()
+    fatal_halt();
 }
 
 extern "x86-interrupt" fn fatal_double_fault(
@@ -82,7 +81,13 @@ extern "x86-interrupt" fn page_fault_handler(
     frame: InterruptStackFrame,
     error_code: PageFaultErrorCode,
 ) -> ! {
-    let faulting_address = Cr2::read();
+    let faulting_address = match Cr2::read() {
+        Ok(address) => address,
+        Err(_) => {
+            println!("FATAL: CR2 contains a non-canonical address");
+            fatal_halt()
+        }
+    };
     println!("FATAL: page fault at {:#018x}", faulting_address.as_u64());
     println!("Error flags={:#x}", error_code.bits());
     println!("RIP={:#018x}", frame.instruction_pointer.as_u64());
