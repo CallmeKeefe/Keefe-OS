@@ -3,7 +3,6 @@
 //! This module provides structures and utilities for capturing
 //! and displaying CPU exception state.
 
-#![no_std]
 
 use x86_64::structures::idt::InterruptStackFrame;
 

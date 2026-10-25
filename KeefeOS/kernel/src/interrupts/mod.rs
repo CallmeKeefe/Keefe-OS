@@ -38,16 +38,14 @@
 //! 2. This stack is guaranteed to be valid even if the main stack is corrupted
 //! 3. The TSS (Task State Segment) configures automatic stack switching
 
-#![no_std]
 
 pub mod idt;
 pub mod gdt;
 pub mod exceptions;
 
 // Re-export key types for convenience
-pub use idt::init_interrupts;
+pub use idt::init as init_idt;
 pub use gdt::{GlobalDescriptorTableWrapper, TaskStateSegmentWrapper};
-pub use exceptions::ExceptionFrame;
 
 /// Hardware interrupt offset
 /// 
