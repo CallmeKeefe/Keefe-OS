@@ -44,7 +44,6 @@
 //! Bits 0-3: Type (executable, writable, readable, etc.)
 //! ```
 
-#![no_std]
 
 use x86_64::structures::gdt::{
     Descriptor,
@@ -54,7 +53,7 @@ use x86_64::structures::gdt::{
 };
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
-use crate::console::println;
+use crate::println;
 
 /// Stack size for the double fault Interrupt Stack Table (IST)
 ///
@@ -288,13 +287,12 @@ pub fn get_tss() -> &'static mut TaskStateSegment {
 ///
 /// Modifies CPU state. The TSS must be valid and the GDT must be loaded.
 pub fn load_tss(tss_selector: SegmentSelector) {
-    use x86_64::instructions::segmentation::set_cs;
-    use x86_64::instructions::segmentation::load_tr;
+    use x86_64::instructions::tables::load_tss;
     
     // The TSS is loaded using the load_tr instruction
     // This tells the CPU where to find the TSS for stack switching
     unsafe {
-        load_tr(tss_selector);
+        load_tss(tss_selector);
     }
     
     println!("  [TSS] Loaded into task register (selector={:#06x})", tss_selector.0);

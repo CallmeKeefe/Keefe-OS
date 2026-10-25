@@ -57,7 +57,6 @@
 //! - Protection against accidental kernel pointer dereferences in user mode
 //! - Easy identity mapping of physical memory at KERNEL_OFFSET
 
-#![no_std]
 
 use bitflags::bitflags;
 use core::fmt;

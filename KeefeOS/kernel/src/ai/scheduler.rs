@@ -11,7 +11,7 @@
 
 #![no_std]
 
-use core::sync::atomic::{AtomicU32, AtomicBool, Ordering;
+use core::sync::atomic::{AtomicU32, AtomicBool, Ordering};
 use alloc::vec::Vec;
 
 static SCHEDULER_INITIALIZED: AtomicBool = AtomicBool::new(false);

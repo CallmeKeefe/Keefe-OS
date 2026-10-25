@@ -24,7 +24,7 @@ impl PrivilegeLevel {
     /// Returns true if this is a privileged level (kernel mode)
     #[inline]
     pub const fn is_privileged(self) -> bool {
-        self as u8 < 3
+        (self as u8) < 3
     }
     
     /// Returns true if this is user mode
