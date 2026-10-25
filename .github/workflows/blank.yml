@@ -48,12 +48,39 @@ jobs:
       - name: Build UEFI bootloader
         run: cargo build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
 
-      - name: Install QEMU and OVMF for boot verification
+      - name: Install QEMU and discover OVMF firmware
+        shell: bash
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y qemu-system-x86 ovmf
-          test -f /usr/share/OVMF/OVMF_CODE.fd
-          test -f /usr/share/OVMF/OVMF_VARS.fd
+
+          ovmf_code=""
+          ovmf_vars=""
+          for directory in /usr/share/OVMF /usr/share/ovmf /usr/share/qemu; do
+            # Prefer matching 4 MiB firmware pairs, then legacy filenames.
+            if [[ -e "$directory/OVMF_CODE_4M.fd" && -e "$directory/OVMF_VARS_4M.fd" ]]; then
+              ovmf_code="$directory/OVMF_CODE_4M.fd"
+              ovmf_vars="$directory/OVMF_VARS_4M.fd"
+              break
+            fi
+            if [[ -e "$directory/OVMF_CODE.fd" && -e "$directory/OVMF_VARS.fd" ]]; then
+              ovmf_code="$directory/OVMF_CODE.fd"
+              ovmf_vars="$directory/OVMF_VARS.fd"
+              break
+            fi
+          done
+
+          if [[ -z "$ovmf_code" || -z "$ovmf_vars" ]]; then
+            echo "Could not find a matching OVMF code/variables firmware pair."
+            find /usr/share -maxdepth 3 -iname '*ovmf*' -print || true
+            exit 1
+          fi
+
+          echo "OVMF_CODE=$ovmf_code" >> "$GITHUB_ENV"
+          echo "OVMF_VARS=$ovmf_vars" >> "$GITHUB_ENV"
+          echo "Using OVMF code: $ovmf_code"
+          echo "Using OVMF variables: $ovmf_vars"
 
       - name: Assemble disk image
         run: cargo run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
@@ -62,11 +89,11 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          cp /usr/share/OVMF/OVMF_VARS.fd OVMF_VARS.test.fd
+          cp "$OVMF_VARS" OVMF_VARS.test.fd
           set +e
           timeout 20s qemu-system-x86_64 \
             -machine q35 -m 512M -cpu qemu64 \
-            -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \
+            -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
             -drive if=pflash,format=raw,file=OVMF_VARS.test.fd \
             -drive format=raw,file=target/keefeos.img \
             -boot order=c -display none -serial stdio -no-reboot \
