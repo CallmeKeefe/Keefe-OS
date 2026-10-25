@@ -1,11 +1,8 @@
-//! LLM-Powered AI Agent for KeefeOS
+//! Local command-demo interface for KeefeOS.
 //!
-//! Provides an intelligent AI agent that can:
-//! - Understand natural language commands
-//! - Assist with system administration
-//! - Provide security recommendations
-//! - Automate complex tasks
-//! - Learn from user interactions
+//! This module is not connected to an LLM, network provider, or privileged
+//! system-management service. It handles a few recognized strings locally so
+//! the kernel can expose a stable prototype API without claiming AI inference.
 
 #![no_std]
 
@@ -13,299 +10,175 @@ extern crate alloc;
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::sync::atomic::{AtomicBool, AtomicU64, Ordering;
+use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 static AGENT_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static COMMANDS_PROCESSED: AtomicU64 = AtomicU64::new(0);
-static TASKS_COMPLETED: AtomicU64 = AtomicU64::new(0);
 
-/// AI Agent command types
+/// Broad command category used by the local demo parser.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommandType {
+    /// Request status information.
     SystemQuery,
+    /// Request a security audit.
     SecurityAudit,
+    /// Request a tuning recommendation.
     PerformanceTuning,
+    /// Request a file operation (unsupported).
     FileOperation,
+    /// Request process management (unsupported).
     ProcessManagement,
+    /// Request network configuration (unsupported).
     NetworkConfig,
+    /// General help or educational assistance.
     UserAssistance,
+    /// Request an automation task (unsupported).
     Automation,
+    /// Request diagnostic information.
     Diagnostic,
+    /// An unrecognized command.
     Unknown,
+}
 
-
-/// AI Agent response
+/// Result from the local command demo.
 #[derive(Debug, Clone)]
 pub struct AgentResponse {
+    /// Whether this local command was recognized and answered.
     pub success: bool,
+    /// Human-readable response.
     pub message: String,
+    /// Optional raw response bytes; empty for this demo.
     pub data: Vec<u8>,
+    /// Suggested next command strings.
     pub suggested_actions: Vec<String>,
+    /// Heuristic confidence, not an LLM confidence score.
     pub confidence: f32,
-
+}
 
 impl AgentResponse {
+    /// Create a response with no data or suggested actions.
     pub fn new(success: bool, message: &str) -> Self {
         Self {
             success,
             message: String::from(message),
             data: Vec::new(),
             suggested_actions: Vec::new(),
-            confidence: 1.0,
+            confidence: 0.0,
+        }
+    }
 
-
-    
+    /// Set a bounded local-heuristic confidence value.
     pub fn with_confidence(mut self, confidence: f32) -> Self {
-        self.confidence = confidence;
+        self.confidence = confidence.clamp(0.0, 1.0);
         self
+    }
 
-    
-    pub fn with_suggestions(mut self, suggestions: Vec<&str>) -> Self {
-        self.suggested_actions = suggestions.iter().map(|s| String::from(*s)).collect();
+    /// Append a suggested command.
+    pub fn suggest(mut self, command: &str) -> Self {
+        self.suggested_actions.push(String::from(command));
         self
+    }
+}
 
-
-
-/// Initialize the AI Agent
+/// Initialize the local command-demo interface.
 pub fn init() {
-    
-        AGENT_INITIALIZED.store(true, Ordering::Release);
+    AGENT_INITIALIZED.store(true, Ordering::Release);
+    log::warn!("KeefeOS command demo initialized; no external LLM is connected");
+}
 
-    log::info!("LLM-Powered AI Agent initialized");
-    log::info!("  - Natural Language Processing: Active");
-    log::info!("  - Task Automation: Ready");
-    log::info!("  - Security Advisor: Online");
-    log::info!("  - Performance Optimizer: Standby");
-
-
-/// Check if agent is initialized
+/// Return whether the local command-demo interface was initialized.
 pub fn is_initialized() -> bool {
     AGENT_INITIALIZED.load(Ordering::Acquire)
+}
 
+/// Return the number of commands handled by the local demo.
+pub fn commands_processed() -> u64 {
+    COMMANDS_PROCESSED.load(Ordering::Relaxed)
+}
 
-/// Process a natural language command
+/// Categorize a command using simple text matching.
+pub fn classify_command(command: &str) -> CommandType {
+    let command = command.trim();
+    if command.eq_ignore_ascii_case("show system status")
+        || command.eq_ignore_ascii_case("system status")
+        || command.eq_ignore_ascii_case("status")
+    {
+        CommandType::SystemQuery
+    } else if command.eq_ignore_ascii_case("run security audit")
+        || command.eq_ignore_ascii_case("security audit")
+    {
+        CommandType::SecurityAudit
+    } else if command.eq_ignore_ascii_case("optimize performance")
+        || command.eq_ignore_ascii_case("performance tuning")
+    {
+        CommandType::PerformanceTuning
+    } else if command.eq_ignore_ascii_case("help") {
+        CommandType::UserAssistance
+    } else {
+        CommandType::Unknown
+    }
+}
+
+/// Process a small set of local demo commands.
+///
+/// A response never implies that the OS booted successfully, that a scanner
+/// inspected the machine, or that an LLM generated the answer.
 pub fn process_command(command: &str) -> AgentResponse {
     if !is_initialized() {
-        return AgentResponse::new(false, "AI Agent not initialized");
+        return AgentResponse::new(false, "Local command demo is not initialized");
+    }
 
-    
     COMMANDS_PROCESSED.fetch_add(1, Ordering::Relaxed);
-    
-    log::debug!("Processing command: {", command);
-    
-    // Classify the command
-    let cmd_type = classify_command(command);
-    
-    // Execute based on type
-    match cmd_type {
-        CommandType::SystemQuery => handle_system_query(command),
-        CommandType::SecurityAudit => handle_security_request(command),
-        CommandType::PerformanceTuning => handle_performance_request(command),
-        CommandType::Diagnostic => handle_diagnostic_request(command),
-        CommandType::UserAssistance => handle_assistance_request(command),
-        _ => AgentResponse::new(false, "Command not recognized")
-            .with_confidence(0.5)
-            .with_suggestions(vec![
-                "Try 'show system status'",
-                "Try 'run security audit'",
-                "Try 'optimize performance'",
-            ]),
 
-
-
-/// Classify command type using keyword matching
-fn classify_command(command: &str) -> CommandType {
-    let lower = command.to_lowercase();
-    
-    if lower.contains("status") || lower.contains("info") || lower.contains("show") {
-        CommandType::SystemQuery
- else if lower.contains("security") || lower.contains("audit") || lower.contains("vulnerability") {
-        CommandType::SecurityAudit
- else if lower.contains("performance") || lower.contains("optimize") || lower.contains("speed") {
-        CommandType::PerformanceTuning
- else if lower.contains("diagnose") || lower.contains("check") || lower.contains("test") {
-        CommandType::Diagnostic
- else if lower.contains("help") || lower.contains("how") || lower.contains("what") {
-        CommandType::UserAssistance
- else {
-        CommandType::Unknown
-
-
-
-/// Handle system query commands
-fn handle_system_query(command: &str) -> AgentResponse {
-    let response = if command.contains("status") || command.contains("info") {
-        let mut msg = String::from("=== KeefeOS System Status ===\n");
-        msg.push_str("Kernel: Running v0.2.0\n");
-        msg.push_str("AI Subsystem: Active\n");
-        msg.push_str("Security: Enabled\n");
-        msg.push_str("Memory: Operational\n");
-        msg
- else {
-        String::from("System information available. Ask for specific details.")
-;
-    
-    AgentResponse::new(true, &response)
-        .with_confidence(0.95)
-        .with_suggestions(vec![
-            "Show memory status",
-            "Show security status",
-            "Show AI statistics",
-        ])
-
-
-/// Handle security-related requests
-fn handle_security_request(command: &str) -> AgentResponse {
-    let response = if command.contains("audit") {
-        String::from("Running comprehensive security audit...\n- Scanning vulnerabilities\n- Checking access controls\n- Verifying encryption\n- Analyzing attack vectors\n\nAudit complete: System secure (Score: 92/100)")
- else if command.contains("vulnerability") {
-        String::from("Vulnerability scan results:\n- Critical: 0\n- High: 0\n- Medium: 1\n- Low: 2\n\nRecommendation: Update encryption keys to production-ready implementation")
- else {
-        String::from("Security subsystem operational. All systems nominal.")
-;
-    
-    AgentResponse::new(true, &response)
-        .with_confidence(0.9)
-        .with_suggestions(vec![
-            "Run full security scan",
-            "Check encryption status",
-            "Review access logs",
-        ])
-
-
-/// Handle performance optimization requests
-fn handle_performance_request(command: &str) -> AgentResponse {
-    let response = if command.contains("optimize") {
-        String::from("Optimizing system performance...\n- Adjusting scheduler parameters\n- Tuning memory allocation\n- Optimizing cache usage\n\nPerformance improved by estimated 15%")
- else {
-        String::from("Performance metrics:\n- CPU Utilization: 12%\n- Memory Efficiency: 94%\n- I/O Throughput: Optimal\n- AI Inference Latency: <10μs")
-;
-    
-    AgentResponse::new(true, &response)
-        .with_confidence(0.88)
-        .with_suggestions(vec![
-            "Show performance metrics",
-            "Auto-tune system",
-            "Benchmark system",
-        ])
-
-
-/// Handle diagnostic requests
-fn handle_diagnostic_request(command: &str) -> AgentResponse {
-    let response = String::from("Running diagnostics...\n✓ Kernel integrity: OK\n✓ Memory allocator: OK\n✓ AI subsystem: OK\n✓ Security modules: OK\n✓ Interrupt handlers: OK\n\nAll systems operational");
-    
-    AgentResponse::new(true, &response)
-        .with_confidence(0.97)
-        .with_suggestions(vec![
-            "Run memory test",
-            "Check interrupt latency",
-            "Verify security chain",
-        ])
-
-
-/// Handle user assistance requests
-fn handle_assistance_request(command: &str) -> AgentResponse {
-    let response = String::from("I'm your KeefeOS AI Assistant! I can help you with:\n\n1. System queries (status, info)\n2. Security audits and scans\n3. Performance optimization\n4. Diagnostics and troubleshooting\n5. Task automation\n\nWhat would you like to do?");
-    
-    AgentResponse::new(true, &response)
+    match classify_command(command) {
+        CommandType::SystemQuery => AgentResponse::new(
+            true,
+            "KeefeOS status: experimental x86-64 kernel prototype. Boot is not yet verified; paging, process isolation, drivers, and runtime security monitoring are incomplete.",
+        )
         .with_confidence(1.0)
-        .with_suggestions(vec![
-            "Show system status",
-            "Run security audit",
-            "Optimize performance",
-            "Run diagnostics",
-        ])
+        .suggest("show build status")
+        .suggest("show known limitations"),
+        CommandType::SecurityAudit => AgentResponse::new(
+            false,
+            "No security audit was performed: vulnerability scanning and attack detection are placeholders, and secure-boot verification is not implemented.",
+        )
+        .with_confidence(1.0)
+        .suggest("review the security audit documentation"),
+        CommandType::PerformanceTuning => AgentResponse::new(
+            false,
+            "Performance recommendations are experimental heuristics only; no live kernel tunable interface or benchmark feedback is connected.",
+        )
+        .with_confidence(1.0)
+        .suggest("review performance benchmark requirements"),
+        CommandType::UserAssistance => AgentResponse::new(
+            true,
+            "Local command demo only; no external LLM is connected. Try 'show system status' or 'run security audit'.",
+        )
+        .with_confidence(1.0),
+        _ => AgentResponse::new(
+            false,
+            "Command not supported by the local demo. No file, process, network, or automation operation was executed.",
+        )
+        .with_confidence(1.0)
+        .suggest("show system status")
+        .suggest("help"),
+    }
+}
 
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Execute automated task
-pub fn execute_task(task_name: &str, parameters: &[&str]) -> AgentResponse {
-    if !is_initialized() {
-        return AgentResponse::new(false, "AI Agent not initialized");
+    #[test]
+    fn recognizes_status_command() {
+        assert_eq!(classify_command("show system status"), CommandType::SystemQuery);
+    }
 
-    
-    log::info!("Executing automated task: {", task_name);
-    
-    match task_name {
-        "security_scan" => {
-            TASKS_COMPLETED.fetch_add(1, Ordering::Relaxed);
-            AgentResponse::new(true, "Security scan completed successfully")
-
-        "performance_tune" => {
-            TASKS_COMPLETED.fetch_add(1, Ordering::Relaxed);
-            AgentResponse::new(true, "Performance tuning applied")
-
-        "system_backup" => {
-            TASKS_COMPLETED.fetch_add(1, Ordering::Relaxed);
-            AgentResponse::new(true, "System backup initiated")
-
-        _ => AgentResponse::new(false, "Unknown task"),
-
-
-
-/// Get agent statistics
-pub fn get_stats() -> (u64, u64) {
-    (
-        COMMANDS_PROCESSED.load(Ordering::Relaxed),
-        TASKS_COMPLETED.load(Ordering::Relaxed),
-    )
-
-
-/// Generate conversation context for multi-turn dialogue
-pub struct ConversationContext {
-    pub history: Vec<(String, String)>, // (user_input, agent_response)
-    pub current_topic: Option<String>,
-
-
-impl ConversationContext {
-    pub fn new() -> Self {
-        Self {
-            history: Vec::new(),
-            current_topic: None,
-
-
-    
-    pub fn add_exchange(&mut self, input: &str, response: &str) {
-        self.history.push((String::from(input), String::from(response)));
-        
-        // Keep only last 10 exchanges to save memory
-        if self.history.len() > 10 {
-            self.history.remove(0);
-
-
-    
-    pub fn get_context_summary(&self) -> String {
-        if self.history.is_empty() {
-            return String::from("New conversation");
-
-        
-        format!("{ previous exchanges", self.history.len())
-
-
-
-impl Default for ConversationContext {
-    fn default() -> Self {
-        Self::new()
-
-
-
-/// Smart suggestion generator based on context
-pub fn generate_suggestions(context: &ConversationContext) -> Vec<&'static str> {
-    let mut suggestions = Vec::new();
-    
-    if context.current_topic.as_ref().map_or(true, |t| t == "security") {
-        suggestions.push("Run vulnerability scan");
-        suggestions.push("Check encryption status");
-
-    
-    if context.current_topic.as_ref().map_or(true, |t| t == "performance") {
-        suggestions.push("Show benchmarks");
-        suggestions.push("Auto-tune system");
-
-    
-    if suggestions.is_empty() {
-        suggestions.push("Show system status");
-        suggestions.push("Help me with...");
-
-    
-    suggestions
-
+    #[test]
+    fn unknown_commands_are_not_executed() {
+        AGENT_INITIALIZED.store(true, Ordering::Release);
+        let response = process_command("delete user files");
+        assert!(!response.success);
+        assert!(response.message.contains("No file"));
+    }
+}
