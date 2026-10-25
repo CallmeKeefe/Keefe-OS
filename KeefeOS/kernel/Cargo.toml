@@ -14,6 +14,7 @@ test = false
 bench = false
 
 [dependencies]
+keefeos-boot-protocol = { path = "../boot-protocol" }
 # Core architecture dependencies
 x86_64.workspace = true
 volatile.workspace = true

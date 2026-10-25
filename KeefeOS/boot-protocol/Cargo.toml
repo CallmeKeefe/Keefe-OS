@@ -1,0 +1,10 @@
+[package]
+name = "keefeos-boot-protocol"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Validated KeefeOS boot information and ELF64 parsing protocol"
+
+[lib]
+path = "src/lib.rs"

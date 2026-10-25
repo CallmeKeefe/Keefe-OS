@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bootloader", "kernel", "xtask"]
+members = ["boot-protocol", "bootloader", "kernel", "xtask"]
 
 [workspace.package]
 version = "0.1.0"

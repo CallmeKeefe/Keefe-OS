@@ -7,6 +7,7 @@ license.workspace = true
 description = "UEFI loader for the experimental KeefeOS kernel prototype"
 
 [dependencies]
+keefeos-boot-protocol = { path = "../boot-protocol" }
 uefi.workspace = true
 x86_64.workspace = true
 log.workspace = true

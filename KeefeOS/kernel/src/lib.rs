@@ -30,6 +30,7 @@
 
 extern crate alloc;
 
+pub mod bootinfo;
 pub mod arch;
 pub mod memory;
 pub mod console;
