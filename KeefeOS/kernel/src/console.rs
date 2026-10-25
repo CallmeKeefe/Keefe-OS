@@ -4,7 +4,8 @@
 //! - VGA text buffer (16 colors, 80x25 resolution)
 //! - Serial port output (for debugging and logging, COM1 16550 UART)
 //!
-//! Both outputs can be used simultaneously for redundancy.
+//! Early boot output is serial-only. UEFI does not guarantee VGA text mode or
+//! an identity-mapped VGA buffer; GOP framebuffer support requires a validated handoff.
 
 use core::fmt::{self, Write};
 use core::ptr::NonNull;
@@ -266,7 +267,19 @@ impl SerialWriter {
 
     /// Write a byte to the serial port
     pub fn write_byte(&mut self, byte: u8) {
-        while !self.is_transmit_empty() {}
+        // Firmware/platforms may not expose a functioning legacy COM1 UART.
+        // Bound the wait so diagnostics cannot hang the kernel indefinitely.
+        let mut ready = false;
+        for _ in 0..1_000_000 {
+            if self.is_transmit_empty() {
+                ready = true;
+                break;
+            }
+            core::hint::spin_loop();
+        }
+        if !ready {
+            return;
+        }
         // SAFETY: writing to the COM1 data register.
         unsafe {
             self.data.write(byte);
@@ -302,24 +315,13 @@ pub fn init() {
         *serial = Some(writer);
     }
 
-    // Clear VGA screen
-    {
-        let mut vga = VGA_WRITER.lock();
-        vga.clear_screen();
-    }
-
-    log::info!("Console initialized (VGA + Serial)");
+    // Do not touch VGA text memory: UEFI does not promise legacy VGA mode.
+    log::info!("Console initialized (COM1 serial only; GOP is not wired yet)");
 }
 
 /// Write a byte to both VGA and serial outputs
 pub fn write_byte(byte: u8) {
-    // Write to VGA
-    {
-        let mut vga = VGA_WRITER.lock();
-        vga.write_byte(byte);
-    }
-
-    // Write to serial
+    // Serial only; never assume that 0xB8000 is mapped by the active page tables.
     {
         let mut serial = SERIAL_WRITER.lock();
         if let Some(ref mut writer) = *serial {
@@ -338,10 +340,7 @@ pub fn write_str(s: &str) {
 /// Print formatted output (used by the print! macro)
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    // Write to VGA
-    VGA_WRITER.lock().write_fmt(args).unwrap();
-
-    // Write to serial
+    // Serial only; framebuffer output will be added through a validated GOP handoff.
     {
         let mut serial = SERIAL_WRITER.lock();
         if let Some(ref mut writer) = *serial {

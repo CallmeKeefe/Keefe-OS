@@ -1,6 +1,6 @@
 # KeefeOS
 
-[![CI](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml/badge.svg?branch=main)](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml)
+[![CI](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml/badge.svg?branch=main)](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml) ![Experimental](https://img.shields.io/badge/status-experimental-orange) ![x86--64 only](https://img.shields.io/badge/architecture-x86--64-blue) ![Security incomplete](https://img.shields.io/badge/security-incomplete-red)
 
 KeefeOS is an experimental Rust operating-system project targeting an x86-64 bare-metal kernel with a UEFI boot path. It is an engineering prototype, not a production-ready operating system.
 
@@ -19,6 +19,10 @@ KeefeOS is an experimental Rust operating-system project targeting an x86-64 bar
 | Security certification or independent audit | Not performed |
 
 This status is intentionally conservative: source files, roadmap statements, module names, and startup messages are not proof of working OS features.
+
+## Hardware compatibility
+
+KeefeOS is currently an x86-64 experimental prototype. It is not compatible with every device and is not yet installable. Read the [compatibility matrix](docs/COMPATIBILITY.md) for supported build targets, unverified firmware paths, and platforms that are not supported.
 
 ## Repository layout
 

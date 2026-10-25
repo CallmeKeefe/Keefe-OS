@@ -13,9 +13,9 @@
 //!
 //! # Handoff protocol
 //!
-//! The bootloader loads the kernel ELF itself (see the `elf` module and
-//! `bootloader/src/elf.rs`), builds a `BootInfo`, then calls the ELF entry
-//! point as:
+//! The bootloader-to-kernel BootInfo contract is a design target, not yet
+//! implemented by the current bootloader. Before this ABI can be used, an ELF64
+//! loader must validate/load PT_LOAD segments, preserve reserved ranges, and pass:
 //!
 //! ```text
 //! extern "C" fn kernel_start(boot_info_phys: u64) -> !
@@ -24,8 +24,8 @@
 //! At entry the identity mapping created by UEFI is still active, so the
 //! physical address in `RDI` can be dereferenced directly.
 //!
-//! Milestone string: `KEEFEOS-KERNEL-BOOT-OK` — printed over VGA and COM1
-//! serial when the kernel reaches its main loop. CI greps for it.
+//! Milestone string: `KEEFEOS-KERNEL-BOOT-OK` is reserved for a future real boot
+//! smoke test. The current bootloader fails closed and does not reach this code.
 
 /// Magic value ("KIB\x01") identifying a valid boot info block.
 pub const BOOT_INFO_MAGIC: u32 = 0x_4B49_4201;

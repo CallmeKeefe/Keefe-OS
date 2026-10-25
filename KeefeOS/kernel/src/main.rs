@@ -5,11 +5,13 @@
 //!
 //! # Boot Flow
 //!
-//! 1. UEFI bootloader loads the kernel at physical address 0x100000
-//! 2. CPU jumps to `kernel_start` (defined in linker script)
-//! 3. Early initialization (console, memory)
-//! 4. Subsystem initialization (GDT, IDT, paging)
-//! 5. Enter kernel main loop or halt
+//! Intended flow once a valid loader handoff exists:
+//! 1. Validate boot information and the memory map.
+//! 2. Initialize serial diagnostics and reserved/usable memory ranges.
+//! 3. Initialize GDT/TSS and the CPU exception table.
+//! 4. Emit a serial-visible milestone and enter the idle halt loop.
+//!
+//! The current bootloader deliberately does not yet hand off the ELF kernel.
 
 #![no_std]
 #![no_main]
@@ -97,7 +99,7 @@ pub extern "C" fn kernel_start(
     let mut usable_bytes = 0usize;
     for region in &memory_regions {
         if region.is_usable() {
-            usable_bytes += region.size;
+            usable_bytes = usable_bytes.saturating_add(region.size);
         }
     }
     println!("Total usable RAM: {} MB", usable_bytes / (1024 * 1024));
@@ -114,64 +116,33 @@ pub extern "C" fn kernel_start(
     
     // Initialize GDT (Global Descriptor Table) and TSS
     println!("Initializing GDT and TSS...");
-    let gdt_wrapper = interrupts::gdt::init();
+    let _gdt_wrapper = interrupts::gdt::init();
     
     // Initialize IDT (Interrupt Descriptor Table)
     println!("Initializing IDT...");
     interrupts::idt::init();
     
-    // Initialize AI/ML subsystem
-    println!("Initializing AI/ML Subsystem...");
-    keefeos_kernel::ai::init();
-    
-    // Initialize global neural network for kernel-wide use
-    keefeos_kernel::ai::neural_net::init_global_nn();
-    
-    // Initialize security subsystem
-    println!("Initializing Security Subsystem...");
-    if let Err(e) = keefeos_kernel::security::init() {
-        println!("Warning: Security subsystem initialization failed: {}", e);
-    }
-    
-    // Initialize LLM-powered AI agent
-    println!("Initializing LLM AI Agent...");
-    keefeos_kernel::llm_agent::init();
-    
+    // Keep early boot deterministic; experimental AI/LLM modules are not
+    // required for boot and are not security controls.
+    println!("[NOT IMPLEMENTED] Secure-boot signature verification");
+    println!("[NOT IMPLEMENTED] Authenticated encryption and trusted random generation");
+    println!("[FAIL CLOSED] Unverified capability grants are denied");
+    println!("[NOT IMPLEMENTED] Runtime vulnerability scanning and attack detection");
+
     // Run initial security audit
     println!("Running initial security audit...");
     let audit_report = keefeos_kernel::security::security_audit();
     println!("{}", audit_report);
     
-    // Demonstrate AI agent capabilities
-    println!("\n=== AI Agent Demo ===");
-    let response = keefeos_kernel::llm_agent::process_command("show system status");
-    println!("Agent: {}", response.message);
-    
     println!("\n========================================");
-    println!("KeefeOS Microkernel initialized successfully!");
-    println!("========================================");
-    println!("  - Memory Manager: Active");
-    println!("  - GDT/TSS: Active ({} descriptors)", 5);
-    println!("  - IDT: Active (48 handlers: 22 exceptions + 16 IRQs)");
-    println!("  - Double Fault Protection: IST-enabled");
-    println!("  - AI/ML modules: experimental; runtime behavior not verified");
-    println!("    * Neural Network Engine: Ready");
-    println!("    * ML Scheduler: Standby");
-    println!("    * Memory Predictor: Standby");
-    println!("    * Anomaly Detector: Active");
-    println!("    * Performance Optimizer: Active");
-    println!("  - Security modules: experimental; no security certification claimed");
-    println!("    * Secure Boot: NOT VERIFIED");
-    println!("    * Capability System: Active");
-    println!("    * Cryptography integration: NOT VERIFIED");
-    println!("    * Audit logging: experimental");
-    println!("    * Vulnerability Scanner: Monitoring");
-    println!("    * Attack Detector: Active");
-    println!("  - LLM AI Agent: prototype only; external inference not verified");
-    println!("    * Natural Language Interface: Ready");
-    println!("    * Task Automation: Enabled");
-    println!("\nSystem halted. Press reset to restart.");
-    
+    println!("KeefeOS kernel initialization reached idle path");
+    println!("Memory manager: initialized (prototype; paging safety not verified)");
+    println!("GDT/TSS: initialized; user-mode support is not implemented");
+    println!("CPU exception table: initialized; device IRQ routing is disabled");
+    println!("Security status: INCOMPLETE; no production security boundary");
+    println!("KEEFEOS-KERNEL-BOOT-OK");
+    println!("Entering halt loop.");
+
     // Halt the CPU indefinitely
     halt_forever();
 }

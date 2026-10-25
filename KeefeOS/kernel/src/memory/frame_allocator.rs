@@ -32,7 +32,7 @@
 //! - Using atomic operations on individual bitmap words
 //! - Implementing per-CPU caches with work stealing
 
-use core::mem;
+use alloc::vec;
 use super::UEFIMemoryRegion;
 
 /// Size of a physical page frame in bytes
@@ -49,7 +49,7 @@ const BITMAP_WORDS: usize = (MAX_FRAMES + 63) / 64;
 pub struct PhysicalFrameAllocator {
     /// Bitmap tracking allocated/free frames
     /// Each bit represents one frame: 0=free, 1=allocated
-    bitmap: [u64; BITMAP_WORDS],
+    bitmap: alloc::vec::Vec<u64>,
     
     /// Total number of frames managed
     total_frames: usize,
@@ -57,8 +57,6 @@ pub struct PhysicalFrameAllocator {
     /// Number of currently allocated frames
     allocated_count: usize,
     
-    /// Starting frame index (first usable frame after kernel)
-    start_frame: usize,
 }
 
 impl PhysicalFrameAllocator {
@@ -78,57 +76,51 @@ impl PhysicalFrameAllocator {
         kernel_start: usize,
         kernel_end: usize,
     ) -> Self {
-        // Initialize bitmap to all zeros (all frames free initially)
-        let mut bitmap = [0u64; BITMAP_WORDS];
-        
-        // Find the highest physical address to determine total frames needed
+        // Start with every frame reserved. Only explicitly described conventional
+        // memory is marked free, so physical holes and firmware/MMIO ranges remain reserved.
+        let mut bitmap = vec![u64::MAX; BITMAP_WORDS];
+
         let mut max_addr = 0usize;
         for region in memory_map {
-            let region_end = region.end();
-            if region_end > max_addr {
-                max_addr = region_end;
+            if let Some(region_end) = region.phys_start.checked_add(region.size) {
+                max_addr = max_addr.max(region_end);
+            } else {
+                log::error!("Ignoring overflowing physical memory range during allocator sizing");
             }
         }
-        
-        // Calculate total frames (capped at MAX_FRAMES)
-        let total_frames = core::cmp::min(max_addr / FRAME_SIZE, MAX_FRAMES);
-        
-        log::info!("PhysicalFrameAllocator: managing {} frames ({:.2} GB)",
-                   total_frames,
-                   (total_frames * FRAME_SIZE) as f64 / (1024.0 * 1024.0 * 1024.0));
-        
-        // Mark all non-usable regions as allocated
-        for region in memory_map {
-            if !region.is_usable() {
-                Self::mark_region_allocated(&mut bitmap, region.phys_start, region.size);
-            }
-        }
-        
-        // Mark kernel memory as allocated
-        let kernel_frames_start = kernel_start / FRAME_SIZE;
-        let kernel_frames_end = kernel_end / FRAME_SIZE;
-        for frame_idx in kernel_frames_start..=kernel_frames_end {
-            if frame_idx < MAX_FRAMES {
-                Self::set_bit(&mut bitmap, frame_idx, true);
-            }
-        }
-        
-        // Count allocated frames
-        let allocated_count = Self::count_allocated(&bitmap, total_frames);
-        
-        log::info!("Kernel occupies frames {}-{} ({} MB)",
-                   kernel_frames_start,
-                   kernel_frames_end,
-                   (kernel_frames_end - kernel_frames_start) * FRAME_SIZE / (1024 * 1024));
-        
-        Self {
-            bitmap,
+
+        let rounded_max = max_addr.saturating_add(FRAME_SIZE - 1);
+        let total_frames = core::cmp::min(rounded_max / FRAME_SIZE, MAX_FRAMES);
+
+        log::info!(
+            "PhysicalFrameAllocator: managing {} frames ({:.2} GiB addressable)",
             total_frames,
-            allocated_count,
-            start_frame: kernel_frames_end + 1,
+            (total_frames * FRAME_SIZE) as f64 / (1024.0 * 1024.0 * 1024.0)
+        );
+
+        // Clear bits only for explicitly usable firmware ranges.
+        for region in memory_map {
+            if region.is_usable() {
+                Self::mark_region_free(&mut bitmap, region.phys_start, region.size, total_frames);
+            }
         }
+
+        // Keep legacy low memory reserved even if firmware labels a part usable.
+        Self::mark_region_allocated(&mut bitmap, 0, 0x10_0000, total_frames);
+        // Treat kernel_end as exclusive when reserving kernel pages.
+        if kernel_end > kernel_start {
+            Self::mark_region_allocated(
+                &mut bitmap,
+                kernel_start,
+                kernel_end - kernel_start,
+                total_frames,
+            );
+        }
+
+        let allocated_count = Self::count_allocated(&bitmap, total_frames);
+        Self { bitmap, total_frames, allocated_count }
     }
-    
+
     /// Allocate a single physical frame
     ///
     /// Returns the physical address of the allocated frame,
@@ -237,8 +229,12 @@ impl PhysicalFrameAllocator {
     /// - The frame is not currently in use
     /// - No references to this frame exist
     pub fn deallocate(&mut self, phys_addr: usize) {
+        if phys_addr % FRAME_SIZE != 0 {
+            log::error!("Attempted to deallocate unaligned physical address {:#x}", phys_addr);
+            return;
+        }
         let frame_idx = phys_addr / FRAME_SIZE;
-        
+
         if frame_idx >= self.total_frames {
             log::error!("Attempted to deallocate invalid frame {} (max: {})",
                         frame_idx, self.total_frames);
@@ -283,20 +279,48 @@ impl PhysicalFrameAllocator {
         Self::get_bit(&self.bitmap, frame_idx)
     }
     
-    /// Mark a memory region as allocated in the bitmap
-    fn mark_region_allocated(bitmap: &mut [u64; BITMAP_WORDS], start: usize, size: usize) {
-        let start_frame = start / FRAME_SIZE;
-        let end_frame = (start + size + FRAME_SIZE - 1) / FRAME_SIZE;
-        
-        for frame_idx in start_frame..end_frame {
-            if frame_idx < MAX_FRAMES {
-                Self::set_bit(bitmap, frame_idx, true);
-            }
+    /// Mark all frames intersecting a memory range as reserved.
+    /// The bitmap defaults to reserved, so invalid ranges remain unavailable.
+    fn mark_region_allocated(
+        bitmap: &mut [u64],
+        start: usize,
+        size: usize,
+        total_frames: usize,
+    ) {
+        if size == 0 {
+            return;
+        }
+        let Some(end_addr) = start.checked_add(size) else {
+            return;
+        };
+        let end_frame = end_addr.saturating_add(FRAME_SIZE - 1) / FRAME_SIZE;
+        for frame_idx in (start / FRAME_SIZE).min(total_frames)..end_frame.min(total_frames) {
+            Self::set_bit(bitmap, frame_idx, true);
         }
     }
-    
+
+    /// Make only explicit conventional-memory frames available.
+    fn mark_region_free(
+        bitmap: &mut [u64],
+        start: usize,
+        size: usize,
+        total_frames: usize,
+    ) {
+        if size == 0 {
+            return;
+        }
+        let Some(end_addr) = start.checked_add(size) else {
+            log::error!("Ignoring overflowing usable memory range");
+            return;
+        };
+        let end_frame = end_addr.saturating_add(FRAME_SIZE - 1) / FRAME_SIZE;
+        for frame_idx in (start / FRAME_SIZE).min(total_frames)..end_frame.min(total_frames) {
+            Self::set_bit(bitmap, frame_idx, false);
+        }
+    }
+
     /// Count the number of allocated frames in the bitmap
-    fn count_allocated(bitmap: &[u64; BITMAP_WORDS], total_frames: usize) -> usize {
+    fn count_allocated(bitmap: &[u64], total_frames: usize) -> usize {
         let mut count = 0;
         let words_needed = total_frames.saturating_add(63) / 64;
         for (word_idx, word) in bitmap.iter().take(words_needed).enumerate() {
@@ -309,7 +333,7 @@ impl PhysicalFrameAllocator {
     
     /// Get the value of a specific bit in the bitmap
     #[inline]
-    fn get_bit(bitmap: &[u64; BITMAP_WORDS], bit_index: usize) -> bool {
+    fn get_bit(bitmap: &[u64], bit_index: usize) -> bool {
         let word_idx = bit_index / 64;
         let bit_offset = bit_index % 64;
         
@@ -322,7 +346,7 @@ impl PhysicalFrameAllocator {
     
     /// Set a specific bit in the bitmap
     #[inline]
-    fn set_bit(bitmap: &mut [u64; BITMAP_WORDS], bit_index: usize, value: bool) {
+    fn set_bit(bitmap: &mut [u64], bit_index: usize, value: bool) {
         let word_idx = bit_index / 64;
         let bit_offset = bit_index % 64;
         
@@ -335,6 +359,63 @@ impl PhysicalFrameAllocator {
         } else {
             bitmap[word_idx] &= !(1 << bit_offset);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::memory::UEFIMemoryType;
+
+    fn region(ty: UEFIMemoryType, start: usize, size: usize) -> UEFIMemoryRegion {
+        UEFIMemoryRegion { ty, phys_start: start, size }
+    }
+
+    #[test]
+    fn only_conventional_regions_are_allocatable() {
+        let map = [
+            region(UEFIMemoryType::CONVENTIONAL, 0x10_0000, 0x4000),
+            region(UEFIMemoryType::RESERVED, 0x20_0000, 0x4000),
+            region(UEFIMemoryType::CONVENTIONAL, 0x20_4000, 0x4000),
+        ];
+        let alloc = PhysicalFrameAllocator::new(&map, 0x10_1000, 0x10_3000);
+        assert!(alloc.is_allocated(0)); // low memory
+        assert!(alloc.is_allocated(0x10_1000 / FRAME_SIZE)); // kernel
+        assert!(alloc.is_allocated(0x104000 / FRAME_SIZE)); // gap
+        assert!(alloc.is_allocated(0x200000 / FRAME_SIZE)); // reserved descriptor
+        assert!(!alloc.is_allocated(0x103000 / FRAME_SIZE)); // conventional memory
+        assert!(!alloc.is_allocated(0x204000 / FRAME_SIZE)); // later conventional range
+    }
+
+    #[test]
+    fn allocation_skips_physical_holes() {
+        let map = [
+            region(UEFIMemoryType::CONVENTIONAL, 0x10_0000, 0x2000),
+            region(UEFIMemoryType::CONVENTIONAL, 0x20_0000, 0x2000),
+        ];
+        let mut alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
+        assert_eq!(alloc.allocate(), Some(0x10_1000));
+        assert_eq!(alloc.allocate(), Some(0x20_0000));
+    }
+
+    #[test]
+    fn deallocation_requires_page_alignment() {
+        let map = [region(UEFIMemoryType::CONVENTIONAL, 0x10_0000, 0x3000)];
+        let mut alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
+        let addr = alloc.allocate().expect("usable frame should be available");
+        let before = alloc.free_count();
+        alloc.deallocate(addr + 1);
+        assert_eq!(alloc.free_count(), before);
+        alloc.deallocate(addr);
+        assert_eq!(alloc.free_count(), before + 1);
+    }
+
+    #[test]
+    fn kernel_end_is_exclusive() {
+        let map = [region(UEFIMemoryType::CONVENTIONAL, 0x10_0000, 0x4000)];
+        let alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
+        assert!(alloc.is_allocated(0x10_0000 / FRAME_SIZE));
+        assert!(!alloc.is_allocated(0x10_1000 / FRAME_SIZE));
     }
 }
 

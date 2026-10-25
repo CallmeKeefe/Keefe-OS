@@ -1,9 +1,15 @@
-# Security reporting
+# Security policy
 
-KeefeOS is experimental software and has not been independently security-audited. Do not rely on it to protect sensitive data or as a production security boundary.
+KeefeOS is an experimental x86-64 operating-system prototype. It is not currently verified to boot and is not a production security boundary. Do not use it to store, process, or protect sensitive information.
 
-Do not publish an exploitable vulnerability in a public issue. If private vulnerability reporting is enabled, use the [GitHub Security Advisories page](https://github.com/CallmeKeefe/Keefe-OS/security/advisories/new). If it is unavailable, contact the repository owner through their GitHub profile to request a private disclosure channel.
+## Reporting a vulnerability
 
-Reports should include the affected commit, file/subsystem, build target, reproduction steps, observed impact, and relevant logs. Do not include live credentials, private keys, personal data, or other secrets.
+Please do not publish an exploitable vulnerability in a public issue. If GitHub private vulnerability reporting is enabled, use the [Security Advisories page](https://github.com/CallmeKeefe/Keefe-OS/security/advisories/new). Otherwise contact the repository owner through their GitHub profile to arrange private disclosure.
 
-This policy does not assert that secure boot, encryption, capability isolation, memory isolation, or exploit detection are complete or verified. Check the implementation and current audit before relying on any feature.
+Include the affected commit, file/subsystem, platform and build target, reproducible steps, observed impact, and relevant logs. Do not include live credentials, private keys, personal information, or secret values.
+
+## Current security limitations
+
+Cryptographic operations, secure-boot signature verification, capability authorization, runtime vulnerability scanning, and attack detection are not implemented as reliable security controls. APIs that would otherwise imply successful verification fail closed. An empty scan result or a successful compile must not be interpreted as proof of security.
+
+Review the current [security status](docs/audit/SECURITY_STATUS.md) before making claims about any protection.
