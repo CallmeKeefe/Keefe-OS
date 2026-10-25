@@ -39,6 +39,9 @@ jobs:
       - name: Test boot protocol and ELF parser
         run: cargo test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
 
+      - name: Test shared BootInfo and ELF parser
+        run: cargo test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
+
       - name: Run host-side kernel unit tests
         run: cargo test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
 
@@ -48,13 +51,45 @@ jobs:
       - name: Build UEFI bootloader
         run: cargo build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
 
+      - name: Install QEMU and OVMF for boot verification
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 ovmf
+          test -f /usr/share/OVMF/OVMF_CODE.fd
+          test -f /usr/share/OVMF/OVMF_VARS.fd
+
       - name: Assemble disk image
         run: cargo run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 
-      - name: Upload generated disk image
+      - name: QEMU/OVMF serial boot smoke test
+        shell: bash
+        run: |
+          set -uo pipefail
+          cp /usr/share/OVMF/OVMF_VARS.fd OVMF_VARS.test.fd
+          set +e
+          timeout 20s qemu-system-x86_64 \
+            -machine q35 -m 512M -cpu qemu64 \
+            -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \
+            -drive if=pflash,format=raw,file=OVMF_VARS.test.fd \
+            -drive format=raw,file=target/keefeos.img \
+            -boot order=c -display none -serial stdio -no-reboot \
+            > qemu-serial.log 2>&1
+          qemu_status=$?
+          set -e
+          cat qemu-serial.log
+          if ! grep -Fq "KEEFEOS-KERNEL-BOOT-OK" qemu-serial.log; then
+            echo "Kernel boot milestone not observed (QEMU exit=$qemu_status)"
+            exit 1
+          fi
+          echo "Kernel boot milestone observed over serial."
+
+      - name: Upload generated disk image and serial log
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: keefeos-disk-image
-          path: KeefeOS/target/keefeos.img
-          if-no-files-found: error
+          path: |
+            KeefeOS/target/keefeos.img
+            KeefeOS/qemu-serial.log
+          if-no-files-found: warn
           retention-days: 7

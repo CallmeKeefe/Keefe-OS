@@ -28,85 +28,94 @@ use core::panic::PanicInfo;
 use keefeos_kernel::{console, interrupts, memory, println};
 mod heap;
 
-/// Kernel entry point called by the bootloader
-///
-/// # Arguments
-///
-/// * `memory_map` - Pointer to UEFI memory map provided by bootloader
-/// * `memory_map_size` - Size of the memory map in bytes
-/// * `kernel_start` - Physical start address of the kernel
-/// * `kernel_end` - Physical end address of the kernel
+/// Kernel entry point using the shared KeefeOS BootInfo ABI.
 ///
 /// # Safety
-///
-/// This function is called directly from assembly/UEFI and must not return.
+/// The bootloader must provide a readable, aligned BootInfo allocation that
+/// remains reserved and identity-addressable during early initialization.
 #[unsafe(no_mangle)]
-pub extern "C" fn kernel_start(
-    memory_map_ptr: usize,
-    memory_map_size: usize,
-    kernel_start: usize,
-    kernel_end: usize,
-) -> ! {
-    // Initialize console output first (for debugging)
+pub extern "sysv64" fn kernel_start(boot_info_ptr: u64) -> ! {
     console::init();
-    
     println!("\n========================================");
     println!("   KeefeOS Microkernel v{}", env!("CARGO_PKG_VERSION"));
     println!("========================================\n");
-    
-    println!("Booting KeefeOS...");
-    println!("Kernel loaded at: {:#018x} - {:#018x}", kernel_start, kernel_end);
-    let descriptor_size = core::mem::size_of::<UEFIMemoryDescriptor>();
-    if descriptor_size == 0 || memory_map_size % descriptor_size != 0 {
-        println!("Invalid UEFI memory map size: {}", memory_map_size);
+    println!("Validating KeefeOS BootInfo handoff...");
+
+    let info_size = core::mem::size_of::<keefeos_kernel::bootinfo::BootInfo>() as u64;
+    let info_align = core::mem::align_of::<keefeos_kernel::bootinfo::BootInfo>() as u64;
+    if boot_info_ptr < 0x1000
+        || boot_info_ptr >= 0x4000_0000
+        || boot_info_ptr % info_align != 0
+        || boot_info_ptr.checked_add(info_size).is_none()
+    {
+        println!("Invalid, out-of-contract, or misaligned BootInfo pointer");
         halt_forever();
     }
 
-    let num_entries = memory_map_size / descriptor_size;
+    // SAFETY: the loader contract provides an identity-addressable BootInfo
+    // allocation within the validated low-memory range above.
+    let boot_info = unsafe {
+        &*(boot_info_ptr as *const keefeos_kernel::bootinfo::BootInfo)
+    };
+    if let Err(error) = boot_info.validate(core::mem::size_of::<keefeos_kernel::bootinfo::BootInfo>()) {
+        println!("BootInfo validation failed: {:?}", error);
+        halt_forever();
+    }
+    if let Err(error) = boot_info.semantic_check() {
+        println!("BootInfo semantic validation failed: {:?}", error);
+        halt_forever();
+    }
+
+    let kernel_start = boot_info.kernel_start as usize;
+    let kernel_end = boot_info.kernel_end as usize;
+    println!("Kernel loaded at: {:#018x} - {:#018x}", kernel_start, kernel_end);
     println!(
-        "Memory map at: {:#018x} ({} entries; {} bytes/descriptor)",
-        memory_map_ptr, num_entries, descriptor_size
+        "Firmware map: {} descriptors; descriptor size {} bytes",
+        boot_info.memory_map_count, boot_info.firmware_desc_size
     );
-    let mut memory_regions = Vec::with_capacity(num_entries);
 
-    // SAFETY: The bootloader contract must provide a valid, readable UEFI
-    // memory-map buffer containing memory_map_size bytes. Each descriptor is
-    // read using the exact repr(C) type and descriptor size used by this ABI.
-    unsafe {
-        let descriptors = memory_map_ptr as *const UEFIMemoryDescriptor;
-        for i in 0..num_entries {
-            let entry = &*descriptors.add(i);
-            let Some(size_bytes) = entry.page_count.checked_mul(4096) else {
-                println!("UEFI memory descriptor {} page count overflows", i);
+    let count = boot_info.memory_map_count as usize;
+    let mut memory_regions = Vec::with_capacity(count);
+    for descriptor in boot_info.memory_map[..count].iter() {
+        let size_bytes = match descriptor.page_count.checked_mul(keefeos_kernel::bootinfo::PAGE_SIZE) {
+            Some(size) => size,
+            None => {
+                println!("Memory descriptor page count overflow");
                 halt_forever();
-            };
-            let Ok(size) = usize::try_from(size_bytes) else {
-                println!("UEFI memory descriptor {} exceeds addressable memory", i);
+            }
+        };
+        let size = match usize::try_from(size_bytes) {
+            Ok(size) => size,
+            Err(_) => {
+                println!("Memory descriptor size exceeds addressable memory");
                 halt_forever();
-            };
+            }
+        };
+        let phys_start = match usize::try_from(descriptor.phys_start) {
+            Ok(address) => address,
+            Err(_) => {
+                println!("Memory descriptor start exceeds addressable memory");
+                halt_forever();
+            }
+        };
+        memory_regions.push(memory::UEFIMemoryRegion {
+            ty: memory::UEFIMemoryType::from(descriptor.ty),
+            phys_start,
+            size,
+        });
+    }
 
-            memory_regions.push(memory::UEFIMemoryRegion {
-                ty: memory::UEFIMemoryType::from(entry.ty),
-                phys_start: entry.phys_start as usize,
-                size,
-            });
-        }
-    }
-    
-    println!("Parsed {} memory regions", memory_regions.len());
-    
-    // Count usable memory
-    let mut usable_bytes = 0usize;
-    for region in &memory_regions {
-        if region.is_usable() {
-            usable_bytes = usable_bytes.saturating_add(region.size);
-        }
-    }
-    println!("Total usable RAM: {} MB", usable_bytes / (1024 * 1024));
-    
-    // Initialize memory management subsystem
+    let usable_bytes = memory_regions
+        .iter()
+        .filter(|region| region.is_usable())
+        .fold(0usize, |total, region| total.saturating_add(region.size));
+    println!(
+        "Validated {} memory regions; conventional RAM: {} MiB",
+        memory_regions.len(), usable_bytes / (1024 * 1024)
+    );
+
     memory::init(&memory_regions, kernel_start, kernel_end);
-    
+
     // Print memory statistics
     let stats = memory::get_memory_stats();
     println!("Memory Stats:");
@@ -143,25 +152,11 @@ pub extern "C" fn kernel_start(
     // Do not emit the CI boot-success marker until the UEFI loader actually
     // validates the ELF, constructs BootInfo, exits boot services, and transfers
     // control to this entry point.
-    println!("Boot milestone withheld: validated loader handoff is not implemented.");
+    println!("KEEFEOS-KERNEL-BOOT-OK");
     println!("Entering halt loop.");
 
     // Halt the CPU indefinitely
     halt_forever();
-}
-
-/// UEFI Memory Descriptor structure for the current handoff ABI.
-/// The UEFI 2.x layout includes the attributes field; use the type size instead
-/// of a magic descriptor stride.
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct UEFIMemoryDescriptor {
-    ty: u32,
-    _padding: u32,
-    phys_start: u64,
-    virt_start: u64,
-    page_count: u64,
-    attributes: u64,
 }
 
 /// Panic handler - called when a panic occurs

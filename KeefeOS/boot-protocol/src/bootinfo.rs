@@ -157,7 +157,7 @@ impl BootInfo {
             fb_pixels_per_scan_line: 0,
             cmdline_size: 0,
             cmdline_offset: 0,
-            memory_map: [MemoryDescriptor::default(); MAX_MEMORY_DESCRIPTORS],
+            memory_map: [MemoryDescriptor { ty: 0, _pad: 0, phys_start: 0, virt_start: 0, page_count: 0, att: 0 }; MAX_MEMORY_DESCRIPTORS],
         }
     }
 
