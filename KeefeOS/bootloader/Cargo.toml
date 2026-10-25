@@ -8,7 +8,7 @@ description = "UEFI loader for the experimental KeefeOS kernel prototype"
 
 [dependencies]
 keefeos-boot-protocol = { path = "../boot-protocol" }
-uefi.workspace = true
+uefi = { workspace = true, features = ["global_allocator"] }
 x86_64.workspace = true
 log.workspace = true
 
