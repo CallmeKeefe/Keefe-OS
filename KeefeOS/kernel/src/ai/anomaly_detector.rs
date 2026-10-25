@@ -228,10 +228,11 @@ impl ProcessProfile {
         for &count in &self.syscall_counts {
             if count > 0 {
                 let p = (count as f32) / (self.total_syscalls as f32);
-                entropy -= p * p.ln();
+                // Bounded entropy surrogate: exact ln() is unavailable in core/no_std.
+                entropy += p * (1.0 - p);
             }
         }
-        self.entropy = entropy / 8.0; // Normalize to 0-1 range
+        self.entropy = (entropy * 4.0).clamp(0.0, 1.0); // Heuristic, not Shannon entropy
     }
     
     pub fn entropy(&self) -> f32 {

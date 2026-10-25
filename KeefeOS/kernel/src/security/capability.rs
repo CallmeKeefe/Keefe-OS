@@ -132,6 +132,8 @@ fn get_current_time() -> u64 {
 
 /// Common capability types for system resources
 pub mod caps {
+    use alloc::format;
+    use alloc::string::String;
     use super::Capability;
     
     /// Create capability for memory access

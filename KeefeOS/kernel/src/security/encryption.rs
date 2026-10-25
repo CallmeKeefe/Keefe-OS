@@ -193,7 +193,7 @@ pub fn secure_zero(buffer: &mut [u8]) {
 pub fn random_bytes(buffer: &mut [u8]) {
     // In production, use RDRAND/RDSEED instructions
     for i in 0..buffer.len() {
-        buffer[i] = ((i * 2654435761u32) % 256) as u8;
+        buffer[i] = (i.wrapping_mul(2654435761usize) & 0xff) as u8;
     }
 }
 

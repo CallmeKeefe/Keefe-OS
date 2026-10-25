@@ -89,7 +89,7 @@ impl Layer {
 }
 
 /// A complete neural network with multiple layers
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NeuralNetwork {
     layers: [Option<Layer>; 4],  // Max 4 layers
     num_layers: usize,

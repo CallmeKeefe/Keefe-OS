@@ -182,7 +182,8 @@ pub fn normalize(vector: &mut [f32]) {
 /// Sigmoid activation function for neural networks
 #[inline]
 pub fn sigmoid(x: f32) -> f32 {
-    1.0 / (1.0 + (-x).exp())
+    // Rational approximation available in core/no_std; not a libm exponential.
+    0.5 * (x / (1.0 + x.abs()) + 1.0)
 }
 
 /// ReLU activation function
@@ -193,9 +194,20 @@ pub fn relu(x: f32) -> f32 {
 
 /// Softmax function for output layer
 pub fn softmax(values: &mut [f32]) {
-    let max = values.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-    let sum: f32 = values.iter().map(|&x| (x - max).exp()).sum();
-    for x in values.iter_mut() {
-        *x = (*x - max).exp() / sum;
+    if values.is_empty() {
+        return;
+    }
+    // Rational positive weights approximate softmax without exp() in core/no_std.
+    let max = values.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let mut sum = 0.0;
+    for value in values.iter_mut() {
+        let delta = (*value - max).clamp(-32.0, 0.0);
+        *value = 1.0 / (1.0 + delta.abs());
+        sum += *value;
+    }
+    if sum > 0.0 {
+        for value in values.iter_mut() {
+            *value /= sum;
+        }
     }
 }
