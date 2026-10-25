@@ -296,8 +296,8 @@ mod tests {
         bytes[ph..ph+4].copy_from_slice(&PT_LOAD.to_le_bytes());
         bytes[ph+4..ph+8].copy_from_slice(&5u32.to_le_bytes()); // R | X
         bytes[ph+8..ph+16].copy_from_slice(&120u64.to_le_bytes());
-        bytes[ph+16..ph+24].copy_from_slice(&0x10_0000u64.to_le_bytes());
-        bytes[ph+24..ph+32].copy_from_slice(&0x10_0000u64.to_le_bytes());
+        bytes[ph+16..ph+24].copy_from_slice(&0x0200_0000u64.to_le_bytes());
+        bytes[ph+24..ph+32].copy_from_slice(&0x0200_0000u64.to_le_bytes());
         bytes[ph+32..ph+40].copy_from_slice(&1u64.to_le_bytes());
         bytes[ph+40..ph+48].copy_from_slice(&0x1000u64.to_le_bytes());
         bytes[ph+48..ph+56].copy_from_slice(&1u64.to_le_bytes());
@@ -306,11 +306,11 @@ mod tests {
     }
 
     #[test]
-    fn accepts_valid_low_memory_executable() {
+    fn accepts_valid_fixed_window_executable() {
         let bytes = sample_elf();
         let image = ElfImage::parse(&bytes).unwrap();
-        assert_eq!(image.entry(), 0x10_0000);
-        assert_eq!(image.load_start(), 0x10_0000);
+        assert_eq!(image.entry(), 0x0200_0000);
+        assert_eq!(image.load_start(), 0x0200_0000);
         assert_eq!(image.load_end(), 0x0200_1000);
         let segment = image.segment_at(0).unwrap().unwrap();
         assert_eq!(image.segment_bytes(segment).unwrap(), &[0xC3]);
