@@ -4,25 +4,13 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "UEFI bootloader for KeefeOS - boots the microkernel using UEFI standards"
+description = "UEFI loader for the experimental KeefeOS kernel prototype"
 
 [dependencies]
 uefi.workspace = true
-uefi-services.workspace = true
 x86_64.workspace = true
 log.workspace = true
 
-# Bootloader-specific configuration
 [package.metadata.uefi]
 target = "x86_64-unknown-uefi"
 entry-point = "efi_main"
-
-# Optimize for fast boot times
-[profile.dev]
-opt-level = 2
-lto = "thin"
-
-[profile.release]
-opt-level = 3
-lto = "fat"
-codegen-units = 1

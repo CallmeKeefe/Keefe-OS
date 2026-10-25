@@ -1,31 +1,24 @@
 [workspace]
 resolver = "2"
-members = [
-    "bootloader",
-    "kernel",
-    "xtask",
-]
+members = ["bootloader", "kernel", "xtask"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
 authors = ["KeefeOS Team"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/keefeos/keefeos"
-homepage = "https://keefeos.org"
-description = "The world's most advanced operating system - A capability-based microkernel written in safe Rust"
+repository = "https://github.com/CallmeKeefe/Keefe-OS"
+description = "Experimental x86_64 bare-metal OS kernel and UEFI loader written in Rust"
 
 [workspace.dependencies]
-# Core dependencies for bare-metal development
-uefi = { version = "0.33", default-features = false }
-uefi-services = { version = "0.26", default-features = false }
+# uefi 0.33 provides the supported helper/logger API; uefi-services is deprecated.
+uefi = { version = "0.33", default-features = false, features = ["logger", "log-debugcon"] }
 x86_64 = { version = "0.15", default-features = false, features = ["instructions", "abi_x86_interrupt", "nightly"] }
 volatile = "0.4"
 bitflags = "2.6"
 log = { version = "0.4", default-features = false }
 spin = { version = "0.9", default-features = false, features = ["mutex", "spin_mutex"] }
 
-# Profile optimizations for kernel development
 [profile.dev]
 panic = "abort"
 opt-level = 2
