@@ -163,19 +163,17 @@ fn format_fat_image(
     kernel_bin: &Path,
     bootloader_efi: &Path,
 ) -> std::io::Result<()> {
-    use fatfs::{FsOptions, LossyOemCpConverter};
+    use fatfs::{FileSystem, FormatVolumeOptions, FsOptions};
 
     let file = fs::OpenOptions::new()
         .read(true)
         .write(true)
         .open(image_path)?;
 
-    let options = FsOptions::new()
-        .volume_label(*b"KEEFEOS    ")
-        .oem_cp_converter(Box::new(LossyOemCpConverter::new()));
+    let format_options = FormatVolumeOptions::new().volume_label(*b"KEEFEOS    ");
+    fatfs::format_volume(&file, format_options)?;
 
-    let fs = fatfs::format_volume(&file, options)?;
-
+    let fs = FileSystem::new(&file, FsOptions::new())?;
     let root_dir = fs.root_dir();
     let efi_dir = root_dir.create_dir("EFI")?;
     let boot_dir = efi_dir.create_dir("BOOT")?;
