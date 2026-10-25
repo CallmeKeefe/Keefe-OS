@@ -45,6 +45,15 @@ pub const FRAMEBUFFER_FORMAT_RGB: u32 = 0;
 /// BGR framebuffer byte order: B, G, R, reserved.
 pub const FRAMEBUFFER_FORMAT_BGR: u32 = 1;
 
+/// A directly accessible UEFI GOP candidate was found before exiting boot services.
+pub const BOOT_INFO_FLAG_GOP_FOUND: u32 = 1 << 0;
+/// The complete framebuffer range is covered by reserved memory descriptors.
+pub const BOOT_INFO_FLAG_GOP_RESERVED: u32 = 1 << 1;
+/// Some part of the framebuffer range overlaps conventional RAM; do not write it.
+pub const BOOT_INFO_FLAG_GOP_CONVENTIONAL_OVERLAP: u32 = 1 << 2;
+/// The final memory map has a gap or no descriptor covering some framebuffer bytes.
+pub const BOOT_INFO_FLAG_GOP_UNMAPPED: u32 = 1 << 3;
+
 /// One normalized UEFI memory descriptor (mirrors the UEFI 2.x
 /// `EFI_MEMORY_DESCRIPTOR` layout: type, pad, phys, virt, pages, attr).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -82,7 +91,7 @@ pub struct BootInfo {
     pub firmware_desc_version: u32,
     /// Number of valid entries in `memory_map`.
     pub memory_map_count: u32,
-    /// Reserved flags word (currently 0).
+    /// Boot flags (see `BOOT_INFO_FLAG_*` constants); unknown bits are reserved.
     pub flags: u32,
     /// Start of the loaded kernel image (virtual == physical at handoff).
     pub kernel_start: u64,

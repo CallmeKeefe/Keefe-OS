@@ -12,6 +12,8 @@ use core::ptr;
 use keefeos_boot_protocol::bootinfo::{
     BootInfo, MemoryDescriptor, MAX_MEMORY_DESCRIPTORS,
     FRAMEBUFFER_FORMAT_BGR, FRAMEBUFFER_FORMAT_RGB,
+    BOOT_INFO_FLAG_GOP_FOUND, BOOT_INFO_FLAG_GOP_RESERVED,
+    BOOT_INFO_FLAG_GOP_CONVENTIONAL_OVERLAP, BOOT_INFO_FLAG_GOP_UNMAPPED,
 };
 use keefeos_boot_protocol::elf::ElfImage;
 use uefi::boot::{self, AllocateType, MemoryType};
@@ -204,40 +206,50 @@ fn efi_main() -> Status {
         };
     }
 
-    // Advertise GOP only if the complete buffer is covered by contiguous
-    // reserved descriptors. Conventional RAM and physical gaps remain rejected.
+    // Publish GOP metadata only if the complete range is covered by contiguous
+    // reserved descriptors. Set a diagnostic flag even when falling back so the
+    // kernel can report why the display path was refused after ExitBootServices.
     if let Some(info) = gop_info {
-        boot_info.fb_addr = info.base;
-        boot_info.fb_size = info.size;
-        boot_info.fb_pixel_format = info.pixel_format;
-        boot_info.fb_horiz_res = info.width;
-        boot_info.fb_vert_res = info.height;
-        boot_info.fb_pixels_per_scan_line = info.stride;
-
-        if !boot_info.range_is_reserved(info.base, info.size) {
-            log::warn!("GOP framebuffer is not fully covered by reserved memory descriptors; using serial-only output");
+        boot_info.flags |= BOOT_INFO_FLAG_GOP_FOUND;
+        if boot_info.range_is_reserved(info.base, info.size) {
+            boot_info.flags |= BOOT_INFO_FLAG_GOP_RESERVED;
+            boot_info.fb_addr = info.base;
+            boot_info.fb_size = info.size;
+            boot_info.fb_pixel_format = info.pixel_format;
+            boot_info.fb_horiz_res = info.width;
+            boot_info.fb_vert_res = info.height;
+            boot_info.fb_pixels_per_scan_line = info.stride;
+        } else {
             if let Some(framebuffer_end) = info.base.checked_add(info.size) {
-                for descriptor in boot_info.memory_map[..boot_info.memory_map_count as usize].iter() {
-                    if let Some(descriptor_end) = BootInfo::descriptor_end(descriptor) {
-                        if descriptor.phys_start < framebuffer_end && info.base < descriptor_end {
-                            log::warn!(
-                                "GOP overlap with memory descriptor type={} range={:#x}..{:#x}",
-                                descriptor.ty,
-                                descriptor.phys_start,
-                                descriptor_end
-                            );
+                let mut cursor = info.base;
+                while cursor < framebuffer_end {
+                    let mut furthest_reserved_end = cursor;
+                    let mut conventional_overlap = false;
+                    for descriptor in boot_info.memory_map[..boot_info.memory_map_count as usize].iter() {
+                        if let Some(descriptor_end) = BootInfo::descriptor_end(descriptor) {
+                            if descriptor.phys_start <= cursor && cursor < descriptor_end {
+                                if descriptor.ty == 7 {
+                                    conventional_overlap = true;
+                                    break;
+                                }
+                                furthest_reserved_end = furthest_reserved_end.max(descriptor_end);
+                            }
                         }
                     }
+                    if conventional_overlap {
+                        boot_info.flags |= BOOT_INFO_FLAG_GOP_CONVENTIONAL_OVERLAP;
+                        break;
+                    }
+                    if furthest_reserved_end <= cursor {
+                        boot_info.flags |= BOOT_INFO_FLAG_GOP_UNMAPPED;
+                        break;
+                    }
+                    cursor = furthest_reserved_end.min(framebuffer_end);
                 }
+            } else {
+                boot_info.flags |= BOOT_INFO_FLAG_GOP_UNMAPPED;
             }
-            boot_info.fb_addr = 0;
-            boot_info.fb_size = 0;
-            boot_info.fb_pixel_format = 0;
-            boot_info.fb_horiz_res = 0;
-            boot_info.fb_vert_res = 0;
-            boot_info.fb_pixels_per_scan_line = 0;
-        } else {
-            log::info!("GOP framebuffer range is covered by reserved memory descriptors");
+            // All framebuffer fields remain zero, forcing serial-only output.
         }
     }
 
