@@ -1,21 +1,15 @@
 [build]
-# Target the bare-metal x86_64 architecture with no standard library
+# Default to the bare-metal kernel target; host tools can override with --target.
 target = "x86_64-unknown-none"
 
-# Use LLD (LLVM linker) for faster linking and better cross-compilation support
-rustflags = [
-    "-C", "link-arg=-nostartfiles",  # Don't use standard C startup files
-    "-C", "code-model=kernel",       # Kernel code model for proper addressing
-    "-C", "panic=abort",             # Abort on panic instead of unwinding
-    "-C", "relocation-model=static", # Static relocation for bare-metal
-    "-C", "merge-functions=disabled", # Disable function merging for debugging
-    "-C", "force-frame-pointers=yes", # Enable frame pointers for stack traces
-]
-
 [target.x86_64-unknown-none]
-# Custom linker script for memory layout control
 linker = "rust-lld"
 rustflags = [
+    "-C", "link-arg=-nostartfiles",
+    "-C", "code-model=kernel",
+    "-C", "panic=abort",
+    "-C", "relocation-model=static",
+    "-C", "force-frame-pointers=yes",
     "-C", "link-arg=--script=kernel/src/arch/x86_64/linker.ld",
 ]
 
