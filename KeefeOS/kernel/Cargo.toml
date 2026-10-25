@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "KeefeOS Microkernel - A capability-based microkernel written in safe Rust"
+description = "Experimental x86_64 bare-metal kernel"
 
 # The kernel is a binary crate that produces a bare-metal executable
 [[bin]]
@@ -28,8 +28,9 @@ uefi = { workspace = true, optional = true }
 [features]
 default = ["uefi-boot"]
 uefi-boot = ["dep:uefi"]
+# The page-table managers are legacy prototypes and are disabled until migrated.
+experimental-paging = []
 
 # No standard library - pure bare-metal
 [lib]
-crate-type = ["staticlib"]
 path = "src/lib.rs"

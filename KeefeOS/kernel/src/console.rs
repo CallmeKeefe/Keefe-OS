@@ -9,7 +9,6 @@
 use core::fmt::{self, Write};
 use core::ptr::NonNull;
 use spin::Mutex;
-use volatile::Volatile;
 use x86_64::instructions::port::Port;
 
 /// Standard VGA text mode colors
@@ -75,7 +74,7 @@ const VGA_BUFFER_ADDRESS: usize = 0xB8000;
 /// The VGA text buffer structure
 #[repr(transparent)]
 struct Buffer {
-    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
+    chars: [[ScreenChar; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 /// Writer to the VGA text buffer
@@ -121,7 +120,10 @@ impl VgaWriter {
 
                 // SAFETY: `self.buffer` points at the valid VGA MMIO region.
                 unsafe {
-                    self.buffer.as_ref().chars[row][col].write(ScreenChar::new(byte, self.color_code));
+                    core::ptr::write_volatile(
+                        self.buffer.as_ptr().cast::<ScreenChar>().add(row * BUFFER_WIDTH + col),
+                        ScreenChar::new(byte, self.color_code),
+                    );
                 }
                 self.column_position += 1;
             }
@@ -146,9 +148,16 @@ impl VgaWriter {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
                 // SAFETY: valid MMIO region, see `VgaWriter::new`.
-                let character = unsafe { self.buffer.as_ref().chars[row][col].read() };
+                let character = unsafe {
+                    core::ptr::read_volatile(
+                        self.buffer.as_ptr().cast::<ScreenChar>().add(row * BUFFER_WIDTH + col),
+                    )
+                };
                 unsafe {
-                    self.buffer.as_ref().chars[row - 1][col].write(character);
+                    core::ptr::write_volatile(
+                        self.buffer.as_ptr().cast::<ScreenChar>().add((row - 1) * BUFFER_WIDTH + col),
+                        character,
+                    );
                 }
             }
         }
@@ -164,7 +173,10 @@ impl VgaWriter {
         for col in 0..BUFFER_WIDTH {
             // SAFETY: valid MMIO region, see `VgaWriter::new`.
             unsafe {
-                self.buffer.as_ref().chars[row][col].write(blank);
+                core::ptr::write_volatile(
+                    self.buffer.as_ptr().cast::<ScreenChar>().add(row * BUFFER_WIDTH + col),
+                    blank,
+                );
             }
         }
     }

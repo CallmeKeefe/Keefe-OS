@@ -1,6 +1,6 @@
 //! KeefeOS Microkernel Library
 //!
-//! This is the core library of the KeefeOS microkernel.
+//! This is the experimental core library of the KeefeOS kernel.
 //! It provides safe Rust abstractions for:
 //! - Physical memory management (frame allocation)
 //! - Virtual memory management (page tables)
@@ -12,18 +12,19 @@
 //!
 //! # Safety Guarantees
 //!
-//! All hardware access is encapsulated in safe interfaces.
+//! Hardware access is still experimental and some low-level APIs remain unsafe.
 //! `unsafe` blocks are only used where absolutely necessary:
 //! - CPU-specific instructions (CR3, INVLPG, etc.)
 //! - Memory-mapped I/O access
 //! - Inline assembly for low-level operations
 //!
-//! All unsafe code is isolated and thoroughly documented.
+//! Unsafe code requires ongoing review; the project is not a production-ready OS.
 
 #![no_std]
 #![feature(asm_const)]
 #![feature(naked_functions)]
 #![feature(panic_info_message)]
+#![feature(abi_x86_interrupt)]
 #![warn(missing_docs)]
 #![warn(missing_debug_implementations)]
 

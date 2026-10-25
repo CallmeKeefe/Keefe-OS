@@ -30,10 +30,23 @@
 //! - Lock-free atomic bitmap operations
 
 pub mod frame_allocator;
+
+// The current UEFI boot path retains the firmware's active address space.
+// The duplicate hand-written paging managers are not safe to initialize yet;
+// keep a visible no-op until they are consolidated and tested.
+#[cfg(feature = "experimental-paging")]
 pub mod paging;
 
+#[cfg(not(feature = "experimental-paging"))]
+pub mod paging {
+    /// Paging setup is intentionally disabled until the boot handoff and page
+    /// table implementation are reconciled. This does not create page tables.
+    pub fn init() {
+        log::warn!("Virtual paging setup is disabled; firmware mappings are retained");
+    }
+}
+
 use self::frame_allocator::PhysicalFrameAllocator;
-use self::paging::{MapFlags, KERNEL_OFFSET};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use spin::Mutex;
 

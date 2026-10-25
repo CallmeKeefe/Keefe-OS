@@ -1,9 +1,13 @@
 //! x86_64 Architecture-Specific Code
 //!
 //! This module contains all architecture-specific implementations
-//! for the x86_64 platform. To support other architectures (ARM64, RISC-V),
-//! implement equivalent modules with the same interface.
+//! for the x86_64 platform. The currently configured kernel target is x86_64 only. ARM64 and RISC-V
+//! support are not implemented.
 
+// The previous hand-written page-table manager does not compile against
+// x86_64 0.15 and conflicts with memory/paging.rs. Keep it out of the default
+// kernel until it is replaced by a single verified implementation.
+#[cfg(feature = "experimental-paging")]
 pub mod paging;
 
 /// CPU privilege levels (rings)

@@ -23,10 +23,7 @@ use alloc::vec::Vec;
 
 use core::panic::PanicInfo;
 
-mod arch;
-mod console;
-mod memory;
-mod interrupts;
+use keefeos_kernel::{console, interrupts, memory};
 mod heap;
 
 /// Kernel entry point called by the bootloader
@@ -157,26 +154,26 @@ pub extern "C" fn kernel_start(
     println!("  - GDT/TSS: Active ({} descriptors)", 5);
     println!("  - IDT: Active (48 handlers: 22 exceptions + 16 IRQs)");
     println!("  - Double Fault Protection: IST-enabled");
-    println!("  - AI/ML Subsystem: Active");
+    println!("  - AI/ML modules: experimental; runtime behavior not verified");
     println!("    * Neural Network Engine: Ready");
     println!("    * ML Scheduler: Standby");
     println!("    * Memory Predictor: Standby");
     println!("    * Anomaly Detector: Active");
     println!("    * Performance Optimizer: Active");
-    println!("  - Security Subsystem: Active");
-    println!("    * Secure Boot: Verified");
+    println!("  - Security modules: experimental; no security certification claimed");
+    println!("    * Secure Boot: NOT VERIFIED");
     println!("    * Capability System: Active");
-    println!("    * Encryption: AES-256-GCM + ChaCha20-Poly1305");
-    println!("    * Blockchain Audit Log: Recording");
+    println!("    * Cryptography integration: NOT VERIFIED");
+    println!("    * Audit logging: experimental");
     println!("    * Vulnerability Scanner: Monitoring");
     println!("    * Attack Detector: Active");
-    println!("  - LLM AI Agent: Online");
+    println!("  - LLM AI Agent: prototype only; external inference not verified");
     println!("    * Natural Language Interface: Ready");
     println!("    * Task Automation: Enabled");
     println!("\nSystem halted. Press reset to restart.");
     
     // Halt the CPU indefinitely
-    keefeos_kernel::halt();
+    halt_forever();
 }
 
 /// UEFI Memory Descriptor structure for the current handoff ABI.
@@ -211,11 +208,7 @@ fn panic(info: &PanicInfo) -> ! {
     println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     
     // Print the panic message
-    if let Some(message) = info.message() {
-        println!("Message: {}", message);
-    } else if let Some(args) = info.payload().downcast_ref::<&str>() {
-        println!("Message: {}", args);
-    }
+    println!("Message: {}", info.message());
     
     // Print location if available
     if let Some(location) = info.location() {

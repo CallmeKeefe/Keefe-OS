@@ -339,17 +339,16 @@ impl PhysicalFrameAllocator {
 }
 
 /// Implementation of x86_64's FrameAllocator trait for interoperability
-impl x86_64::structures::paging::FrameAllocator<x86_64::structures::paging::Size4KiB>
+unsafe impl x86_64::structures::paging::FrameAllocator<x86_64::structures::paging::Size4KiB>
     for PhysicalFrameAllocator
 {
     fn allocate_frame(
         &mut self,
     ) -> Option<x86_64::structures::paging::PhysFrame<x86_64::structures::paging::Size4KiB>>
     {
-        self.allocate()
-            .and_then(|addr| x86_64::PhysAddr::new(addr as u64).as_non_zero())
-            .map(|frame_start| unsafe {
-                x86_64::structures::paging::PhysFrame::from_start_address_unchecked(frame_start)
-            })
+        self.allocate().and_then(|addr| {
+            let physical = x86_64::PhysAddr::new(addr as u64);
+            x86_64::structures::paging::PhysFrame::from_start_address(physical).ok()
+        })
     }
 }

@@ -29,10 +29,10 @@ impl From<&InterruptStackFrame> for ExceptionFrame {
     fn from(frame: &InterruptStackFrame) -> Self {
         Self {
             instruction_pointer: frame.instruction_pointer.as_u64(),
-            code_segment: frame.code_segment.as_u64(),
-            cpu_flags: frame.cpu_flags.as_u64(),
+            code_segment: frame.code_segment.0 as u64,
+            cpu_flags: frame.cpu_flags.bits(),
             stack_pointer: frame.stack_pointer.as_u64(),
-            stack_segment: frame.stack_segment.as_u64(),
+            stack_segment: frame.stack_segment.0 as u64,
         }
     }
 }
