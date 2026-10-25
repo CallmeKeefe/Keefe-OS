@@ -19,7 +19,7 @@ use x86_64::structures::paging::{PageTable, PageTableFlags};
 /// Kernel binary embedded in the bootloader (or loaded from disk)
 /// In a real implementation, this would be loaded from the ESP partition
 #[link_section = ".kernel"]
-static KERNEL_BINARY: &[u8] = include_bytes!("../../target/x86_64-unknown-none/debug/keefeos-kernel");
+static KERNEL_BINARY: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/keefeos-kernel"));
 
 /// UEFI application entry point
 #[entry]

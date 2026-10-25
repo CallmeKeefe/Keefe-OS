@@ -1,36 +1,54 @@
-# This is a basic workflow to help you get started with Actions
+name: KeefeOS CI
 
-name: CI
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "main" ]
+    branches: ["main"]
+    paths:
+      - "KeefeOS/**"
+      - ".github/workflows/**"
+      - "README.md"
+      - "SECURITY.md"
+      - "docs/**"
   pull_request:
-    branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches: ["main"]
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+permissions:
+  contents: read
+
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  build-and-package:
+    name: Build kernel, UEFI loader, and disk image
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    defaults:
+      run:
+        working-directory: KeefeOS
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - name: Install nightly Rust and bare-metal targets
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src, rustfmt, clippy
+          targets: x86_64-unknown-none, x86_64-unknown-uefi
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+      - name: Check host-side xtask
+        run: cargo check --locked --package xtask --target x86_64-unknown-linux-gnu
+
+      - name: Build kernel ELF
+        run: cargo build --locked --package keefeos-kernel --target x86_64-unknown-none
+
+      - name: Build UEFI bootloader
+        run: cargo build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
+
+      - name: Assemble disk image
+        run: cargo run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
+
+      - name: Upload generated disk image
+        uses: actions/upload-artifact@v4
+        with:
+          name: keefeos-disk-image
+          path: KeefeOS/target/keefeos.img
+          if-no-files-found: error
+          retention-days: 7

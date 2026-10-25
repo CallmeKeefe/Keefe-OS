@@ -2,7 +2,10 @@ use std::env;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, exit};
+use std::process::{exit, Command};
+
+const KERNEL_TARGET: &str = "x86_64-unknown-none";
+const BOOTLOADER_TARGET: &str = "x86_64-unknown-uefi";
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -24,9 +27,7 @@ fn main() {
             create_image(release);
             run_qemu(release);
         }
-        "image" => {
-            create_image(release);
-        }
+        "image" => create_image(release),
         _ => {
             eprintln!("Unknown command: {}", command);
             exit(1);
@@ -35,79 +36,134 @@ fn main() {
 }
 
 fn build_all(release: bool) {
-    println!("Building kernel and bootloader...");
+    println!("Building kernel for {KERNEL_TARGET}...");
 
-    let mut cmd = Command::new("cargo");
-    cmd.args(["build", "--package", "keefeos-kernel"]);
+    let mut kernel = Command::new("cargo");
+    kernel.args([
+        "build",
+        "--package",
+        "keefeos-kernel",
+        "--target",
+        KERNEL_TARGET,
+    ]);
     if release {
-        cmd.arg("--release");
-    }
-    let status = cmd.status().expect("Failed to build kernel");
-    if !status.success() {
-        eprintln!("Kernel build failed");
-        exit(1);
+        kernel.arg("--release");
     }
 
-    let mut cmd = Command::new("cargo");
-    cmd.args(["build", "--package", "keefeos-bootloader"]);
+    let status = kernel.status().unwrap_or_else(|error| {
+        eprintln!("Failed to start the kernel build: {error}");
+        exit(1);
+    });
+    if !status.success() {
+        eprintln!("Kernel build failed; refusing to package a disk image.");
+        exit(status.code().unwrap_or(1));
+    }
+
+    println!("Building UEFI bootloader for {BOOTLOADER_TARGET}...");
+
+    let mut bootloader = Command::new("cargo");
+    bootloader.args([
+        "build",
+        "--package",
+        "keefeos-bootloader",
+        "--target",
+        BOOTLOADER_TARGET,
+    ]);
     if release {
-        cmd.arg("--release");
-    }
-    // Bootloader needs UEFI target
-    cmd.env("CARGO_TARGET_X86_64_UNKNOWN_UEFI_RUNNER", "");
-    let status = cmd.status().expect("Failed to build bootloader");
-    if !status.success() {
-        eprintln!("Bootloader build failed");
-        exit(1);
+        bootloader.arg("--release");
     }
 
-    println!("Build completed successfully");
+    let status = bootloader.status().unwrap_or_else(|error| {
+        eprintln!("Failed to start the UEFI bootloader build: {error}");
+        exit(1);
+    });
+    if !status.success() {
+        eprintln!("UEFI bootloader build failed; refusing to package a disk image.");
+        exit(status.code().unwrap_or(1));
+    }
+
+    println!("Both build steps completed successfully.");
 }
 
 fn get_profile(release: bool) -> &'static str {
-    if release { "release" } else { "debug" }
+    if release {
+        "release"
+    } else {
+        "debug"
+    }
+}
+
+fn target_directory(workspace_root: &Path) -> PathBuf {
+    match env::var_os("CARGO_TARGET_DIR") {
+        Some(path) => {
+            let path = PathBuf::from(path);
+            if path.is_absolute() {
+                path
+            } else {
+                workspace_root.join(path)
+            }
+        }
+        None => workspace_root.join("target"),
+    }
 }
 
 fn create_image(release: bool) {
     println!("Creating FAT disk image...");
 
     let profile = get_profile(release);
-    let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf();
-    let target_dir = workspace_root.join("target");
-    
-    // Paths to built binaries
-    let kernel_bin = target_dir.join("x86_64-unknown-none").join(profile).join("keefeos-kernel");
-    let bootloader_efi = target_dir.join("x86_64-unknown-uefi").join(profile).join("keefeos-bootloader.efi");
+    let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("xtask must be inside the KeefeOS workspace")
+        .to_path_buf();
+    let target_dir = target_directory(&workspace_root);
 
-    // Verify binaries exist
-    if !kernel_bin.exists() {
-        eprintln!("Kernel binary not found: {:?}", kernel_bin);
-        eprintln!("Run 'xtask build' first");
+    let kernel_bin = target_dir
+        .join(KERNEL_TARGET)
+        .join(profile)
+        .join("keefeos-kernel");
+    let bootloader_efi = target_dir
+        .join(BOOTLOADER_TARGET)
+        .join(profile)
+        .join("keefeos-bootloader.efi");
+
+    if !kernel_bin.is_file() {
+        eprintln!("Kernel binary not found: {}", kernel_bin.display());
+        eprintln!("Build it first with cargo build --package keefeos-kernel --target {KERNEL_TARGET}.");
         exit(1);
     }
-    if !bootloader_efi.exists() {
-        eprintln!("Bootloader EFI binary not found: {:?}", bootloader_efi);
-        eprintln!("Run 'xtask build' first");
+    if !bootloader_efi.is_file() {
+        eprintln!("UEFI bootloader not found: {}", bootloader_efi.display());
+        eprintln!("Build it first with cargo build --package keefeos-bootloader --target {BOOTLOADER_TARGET}.");
         exit(1);
     }
 
-    // Create image file
     let image_path = target_dir.join("keefeos.img");
-    let image_size = 64 * 1024 * 1024; // 64MB
+    let image_size = 64 * 1024 * 1024;
 
-    // Create a zero-filled image file
-    let mut image_file = File::create(&image_path).expect("Failed to create image file");
-    image_file.set_len(image_size as u64).expect("Failed to set image size");
+    let image_file = File::create(&image_path).unwrap_or_else(|error| {
+        eprintln!("Failed to create {}: {error}", image_path.display());
+        exit(1);
+    });
+    image_file.set_len(image_size as u64).unwrap_or_else(|error| {
+        eprintln!("Failed to size {}: {error}", image_path.display());
+        exit(1);
+    });
     drop(image_file);
 
-    // Format as FAT32 and copy files using fatfs crate
-    format_fat_image(&image_path, &kernel_bin, &bootloader_efi).expect("Failed to format FAT image");
+    format_fat_image(&image_path, &kernel_bin, &bootloader_efi).unwrap_or_else(|error| {
+        eprintln!("Failed to format disk image {}: {error}", image_path.display());
+        exit(1);
+    });
 
-    println!("Disk image created: {:?}", image_path);
+    println!("Disk image created: {}", image_path.display());
 }
 
-fn format_fat_image(image_path: &Path, kernel_bin: &Path, bootloader_efi: &Path) -> std::io::Result<()> {
-    use fatfs::{FileSystemOptions, FsOptions, LossyOemCpConverter};
+fn format_fat_image(
+    image_path: &Path,
+    kernel_bin: &Path,
+    bootloader_efi: &Path,
+) -> std::io::Result<()> {
+    use fatfs::{FsOptions, LossyOemCpConverter};
 
     let file = fs::OpenOptions::new()
         .read(true)
@@ -117,21 +173,18 @@ fn format_fat_image(image_path: &Path, kernel_bin: &Path, bootloader_efi: &Path)
     let options = FsOptions::new()
         .volume_label(*b"KEEFEOS    ")
         .oem_cp_converter(Box::new(LossyOemCpConverter::new()));
-    
+
     let fs = fatfs::format_volume(&file, options)?;
-    
-    // Create EFI directory structure
+
     let root_dir = fs.root_dir();
     let efi_dir = root_dir.create_dir("EFI")?;
     let boot_dir = efi_dir.create_dir("BOOT")?;
-    
-    // Copy bootloader to EFI/BOOT/BOOTX64.EFI
+
     let mut bootloader_data = Vec::new();
     File::open(bootloader_efi)?.read_to_end(&mut bootloader_data)?;
     let mut bootloader_file = boot_dir.create_file("BOOTX64.EFI")?;
     bootloader_file.write_all(&bootloader_data)?;
-    
-    // Copy kernel to root directory
+
     let mut kernel_data = Vec::new();
     File::open(kernel_bin)?.read_to_end(&mut kernel_data)?;
     let mut kernel_file = root_dir.create_file("KERNEL.ELF")?;
@@ -143,16 +196,18 @@ fn format_fat_image(image_path: &Path, kernel_bin: &Path, bootloader_efi: &Path)
 fn run_qemu(_release: bool) {
     println!("Launching QEMU...");
 
-    let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf();
-    let image_path = workspace_root.join("target").join("keefeos.img");
+    let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("xtask must be inside the KeefeOS workspace")
+        .to_path_buf();
+    let image_path = target_directory(&workspace_root).join("keefeos.img");
 
-    if !image_path.exists() {
-        eprintln!("Disk image not found: {:?}", image_path);
-        eprintln!("Run 'xtask build' first");
+    if !image_path.is_file() {
+        eprintln!("Disk image not found: {}", image_path.display());
+        eprintln!("Run the image command after building both target artifacts.");
         exit(1);
     }
 
-    // Check for OVMF firmware
     let ovmf_code_paths = [
         "/usr/share/OVMF/OVMF_CODE.fd",
         "/usr/share/ovmf/OVMF_CODE.fd",
@@ -160,28 +215,47 @@ fn run_qemu(_release: bool) {
     ];
     let ovmf_vars_paths = [
         "/usr/share/OVMF/OVMF_VARS.fd",
-        "/usr/share/ovmf/OVMF_VARS.fd", 
+        "/usr/share/ovmf/OVMF_VARS.fd",
         "/usr/share/qemu/OVMF_VARS.fd",
     ];
 
-    let ovmf_code = ovmf_code_paths.iter().find(|p| Path::new(p).exists())
-        .unwrap_or(&"/usr/share/OVMF/OVMF_CODE.fd");
-    let ovmf_vars = ovmf_vars_paths.iter().find(|p| Path::new(p).exists())
-        .unwrap_or(&"/usr/share/OVMF/OVMF_VARS.fd");
+    let ovmf_code = ovmf_code_paths
+        .iter()
+        .find(|path| Path::new(path).is_file())
+        .copied();
+    let ovmf_vars = ovmf_vars_paths
+        .iter()
+        .find(|path| Path::new(path).is_file())
+        .copied();
+
+    let (Some(ovmf_code), Some(ovmf_vars)) = (ovmf_code, ovmf_vars) else {
+        eprintln!("OVMF firmware not found. Install QEMU and an OVMF package, then retry.");
+        exit(1);
+    };
 
     let status = Command::new("qemu-system-x86_64")
         .args([
-            "-drive", &format!("if=pflash,format=raw,readonly=on,file={}", ovmf_code),
-            "-drive", &format!("if=pflash,format=raw,file={}", ovmf_vars),
-            "-drive", &format!("format=raw,file={}", image_path.display()),
-            "-serial", "stdio",
-            "-m", "256M",
-            "-cpu", "qemu64",
+            "-drive",
+            &format!("if=pflash,format=raw,readonly=on,file={ovmf_code}"),
+            "-drive",
+            &format!("if=pflash,format=raw,file={ovmf_vars}"),
+            "-drive",
+            &format!("format=raw,file={}", image_path.display()),
+            "-serial",
+            "stdio",
+            "-m",
+            "256M",
+            "-cpu",
+            "qemu64",
         ])
         .status()
-        .expect("Failed to start QEMU");
+        .unwrap_or_else(|error| {
+            eprintln!("Failed to launch qemu-system-x86_64: {error}");
+            exit(1);
+        });
 
     if !status.success() {
-        eprintln!("QEMU exited with status: {}", status);
+        eprintln!("QEMU exited unsuccessfully with status {status}.");
+        exit(status.code().unwrap_or(1));
     }
 }
