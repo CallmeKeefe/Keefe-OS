@@ -298,16 +298,11 @@ impl PhysicalFrameAllocator {
     /// Count the number of allocated frames in the bitmap
     fn count_allocated(bitmap: &[u64; BITMAP_WORDS], total_frames: usize) -> usize {
         let mut count = 0;
-        for (word_idx, word) in bitmap.iter().enumerate() {
-            let bits_in_word = word.count_ones() as usize;
-            let frames_in_word = if (word_idx + 1) * 64 <= total_frames {
-                64
-            } else {
-                total_frames - word_idx * 64
-            };
-            
-            // Only count bits within our valid range
-            count += bits_in_word.min(frames_in_word);
+        let words_needed = total_frames.saturating_add(63) / 64;
+        for (word_idx, word) in bitmap.iter().take(words_needed).enumerate() {
+            let valid_frames = total_frames.saturating_sub(word_idx * 64).min(64);
+            // Ignore bitmap padding beyond the highest usable physical frame.
+            count += (word.count_ones() as usize).min(valid_frames);
         }
         count
     }

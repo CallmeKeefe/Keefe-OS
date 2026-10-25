@@ -15,8 +15,11 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 #![feature(naked_functions)]
+#![feature(alloc_error_handler)]
 
 extern crate alloc;
+
+use alloc::vec::Vec;
 
 use core::panic::PanicInfo;
 
@@ -24,6 +27,7 @@ mod arch;
 mod console;
 mod memory;
 mod interrupts;
+mod heap;
 
 /// Kernel entry point called by the bootloader
 ///
@@ -53,23 +57,39 @@ pub extern "C" fn kernel_start(
     
     println!("Booting KeefeOS...");
     println!("Kernel loaded at: {:#018x} - {:#018x}", kernel_start, kernel_end);
-    println!("Memory map at: {:#018x} ({} entries)", memory_map_ptr, memory_map_size / 48);
-    
-    // Parse the UEFI memory map
-    // Each UEFI memory descriptor is 48 bytes
-    let num_entries = memory_map_size / 48;
+    let descriptor_size = core::mem::size_of::<UEFIMemoryDescriptor>();
+    if descriptor_size == 0 || memory_map_size % descriptor_size != 0 {
+        println!("Invalid UEFI memory map size: {}", memory_map_size);
+        halt_forever();
+    }
+
+    let num_entries = memory_map_size / descriptor_size;
+    println!(
+        "Memory map at: {:#018x} ({} entries; {} bytes/descriptor)",
+        memory_map_ptr, num_entries, descriptor_size
+    );
     let mut memory_regions = Vec::with_capacity(num_entries);
-    
+
+    // SAFETY: The bootloader contract must provide a valid, readable UEFI
+    // memory-map buffer containing memory_map_size bytes. Each descriptor is
+    // read using the exact repr(C) type and descriptor size used by this ABI.
     unsafe {
-        let ptr = memory_map_ptr as *const u8;
+        let descriptors = memory_map_ptr as *const UEFIMemoryDescriptor;
         for i in 0..num_entries {
-            let entry_ptr = ptr.add(i * 48) as *const UEFIMemoryDescriptor;
-            let entry = &*entry_ptr;
-            
+            let entry = &*descriptors.add(i);
+            let Some(size_bytes) = entry.page_count.checked_mul(4096) else {
+                println!("UEFI memory descriptor {} page count overflows", i);
+                halt_forever();
+            };
+            let Ok(size) = usize::try_from(size_bytes) else {
+                println!("UEFI memory descriptor {} exceeds addressable memory", i);
+                halt_forever();
+            };
+
             memory_regions.push(memory::UEFIMemoryRegion {
                 ty: memory::UEFIMemoryType::from(entry.ty),
                 phys_start: entry.phys_start as usize,
-                size: entry.size as usize,
+                size,
             });
         }
     }
@@ -159,15 +179,18 @@ pub extern "C" fn kernel_start(
     keefeos_kernel::halt();
 }
 
-/// UEFI Memory Descriptor structure
-/// Matches the UEFI specification layout (48 bytes)
+/// UEFI Memory Descriptor structure for the current handoff ABI.
+/// The UEFI 2.x layout includes the attributes field; use the type size instead
+/// of a magic descriptor stride.
 #[repr(C)]
+#[derive(Clone, Copy)]
 struct UEFIMemoryDescriptor {
     ty: u32,
     _padding: u32,
     phys_start: u64,
     virt_start: u64,
-    size: u64,
+    page_count: u64,
+    attributes: u64,
 }
 
 /// Panic handler - called when a panic occurs
@@ -212,46 +235,21 @@ fn panic(info: &PanicInfo) -> ! {
     }
 }
 
-/// Simple vector implementation for early boot (before alloc is available)
-/// This is a temporary solution until we have proper heap allocation
-struct Vec<T> {
-    data: [T; 256],
-    len: usize,
+/// Allocation failures are fatal until a reclaiming heap allocator exists.
+#[alloc_error_handler]
+fn alloc_error(layout: core::alloc::Layout) -> ! {
+    println!(
+        "KERNEL ALLOCATION FAILURE: size={}, align={}",
+        layout.size(),
+        layout.align()
+    );
+    halt_forever()
 }
 
-impl<T: Default> Vec<T> {
-    fn with_capacity(cap: usize) -> Self {
-        Vec {
-            data: core::array::from_fn(|_| T::default()),
-            len: 0,
-        }
-    }
-    
-    fn push(&mut self, item: T) {
-        if self.len < self.data.len() {
-            self.data[self.len] = item;
-            self.len += 1;
-        }
-    }
-}
-
-impl<T> core::ops::Deref for Vec<T> {
-    type Target = [T];
-    
-    fn deref(&self) -> &Self::Target {
-        &self.data[..self.len]
-    }
-}
-
-impl<T> core::iter::FromIterator<T> for Vec<T> 
-where
-    T: Default,
-{
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut vec = Vec::with_capacity(256);
-        for item in iter {
-            vec.push(item);
-        }
-        vec
+/// Disable interrupts and halt after a fatal early-boot error.
+fn halt_forever() -> ! {
+    x86_64::instructions::interrupts::disable();
+    loop {
+        x86_64::instructions::hlt();
     }
 }

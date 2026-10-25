@@ -43,11 +43,15 @@ pub const KERNEL_NAME: &str = "KeefeOS Microkernel";
 
 /// Initialize the kernel subsystems
 /// This function should be called after basic hardware initialization
-pub fn init() {
+pub fn init(
+    memory_map: &[memory::UEFIMemoryRegion],
+    kernel_start: usize,
+    kernel_end: usize,
+) {
     log::info!("Initializing {} v{}", KERNEL_NAME, KERNEL_VERSION);
-    
-    // Initialize memory subsystem
-    memory::init();
+
+    // The boot caller supplies the validated memory map and image bounds.
+    memory::init(memory_map, kernel_start, kernel_end);
     
     // Initialize AI/ML subsystem
     ai::init();
