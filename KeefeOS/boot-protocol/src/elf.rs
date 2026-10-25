@@ -6,7 +6,6 @@
 //! the caller remains responsible for reserving destination pages and copying
 //! segments before transferring control.
 
-#![no_std]
 
 use core::convert::TryFrom;
 

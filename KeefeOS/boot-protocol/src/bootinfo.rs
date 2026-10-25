@@ -12,9 +12,9 @@
 //!
 //! # Handoff protocol
 //!
-//! The bootloader-to-kernel BootInfo contract is a design target, not yet
-//! implemented by the current bootloader. Before this ABI can be used, an ELF64
-//! loader must validate/load PT_LOAD segments, preserve reserved ranges, and pass:
+//! The UEFI loader parses and bounds-checks ELF64 PT_LOAD segments, reserves the
+//! kernel range, builds this record from the map returned by ExitBootServices,
+//! validates it, and passes:
 //!
 //! ```text
 //! extern "C" fn kernel_start(boot_info_phys: u64) -> !
@@ -23,8 +23,9 @@
 //! At entry the identity mapping created by UEFI is still active, so the
 //! physical address in `RDI` can be dereferenced directly.
 //!
-//! Milestone string: `KEEFEOS-KERNEL-BOOT-OK` is reserved for a future real boot
-//! smoke test. The current bootloader fails closed and does not reach this code.
+//! The kernel emits `KEEFEOS-KERNEL-BOOT-OK` only after validating this structure
+//! and reaching its early idle path. CI must observe it over QEMU serial to
+//! establish a boot milestone; compilation alone does not establish bootability.
 
 /// Magic value ("KIB\x01") identifying a valid boot info block.
 pub const BOOT_INFO_MAGIC: u32 = 0x_4B49_4201;
@@ -269,42 +270,74 @@ impl BootInfo {
         Ok(())
     }
 
-    /// Usable RAM ranges: conventional memory (type 7) minus the kernel
-    /// image range. Returns `(start, size)` pairs in ascending order.
+    /// Iterate over conventional RAM ranges after excluding the kernel image.
+    ///
+    /// This iterator performs no allocation, so the same protocol crate can be
+    /// linked by the UEFI loader before a kernel heap exists.
     #[must_use]
-    pub fn usable_regions(&self) -> Vec<(u64, u64)> {
-        let mut out = Vec::new();
-        for d in &self.memory_map[..self.memory_map_count as usize] {
-            if d.ty != 7 {
-                continue;
-            }
-            let Some(end) = Self::descriptor_end(d) else {
-                continue;
-            };
-            // Carve the kernel range out defensively even though the map
-            // should already exclude it.
-            if end <= self.kernel_start || d.phys_start >= self.kernel_end {
-                out.push((d.phys_start, end - d.phys_start));
-                continue;
-            }
-            if end <= self.kernel_start {
-                out.push((d.phys_start, end - d.phys_start));
-            } else if d.phys_start >= self.kernel_end {
-                out.push((d.phys_start, end - d.phys_start));
-            } else {
-                if d.phys_start < self.kernel_start {
-                    out.push((d.phys_start, self.kernel_start - d.phys_start));
-                }
-                if end > self.kernel_end {
-                    out.push((self.kernel_end, end - self.kernel_end));
-                }
-            }
+    pub fn usable_regions(&self) -> UsableRegionIter<'_> {
+        UsableRegionIter {
+            boot_info: self,
+            index: 0,
+            pending: None,
         }
-        out
     }
 }
 
-use alloc::vec::Vec;
+/// Allocation-free iterator over usable conventional-memory ranges.
+#[derive(Debug, Clone)]
+pub struct UsableRegionIter<'a> {
+    boot_info: &'a BootInfo,
+    index: usize,
+    pending: Option<(u64, u64)>,
+}
+
+impl Iterator for UsableRegionIter<'_> {
+    type Item = (u64, u64);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(region) = self.pending.take() {
+            return Some(region);
+        }
+        let entries = &self.boot_info.memory_map[..self.boot_info.memory_map_count as usize];
+        while self.index < entries.len() {
+            let descriptor = entries[self.index];
+            self.index += 1;
+            if descriptor.ty != 7 {
+                continue;
+            }
+            let end = BootInfo::descriptor_end(&descriptor)?;
+            if end <= descriptor.phys_start {
+                continue;
+            }
+            let kernel_start = self.boot_info.kernel_start;
+            let kernel_end = self.boot_info.kernel_end;
+            if end <= kernel_start || descriptor.phys_start >= kernel_end {
+                return Some((descriptor.phys_start, end - descriptor.phys_start));
+            }
+            let before = if descriptor.phys_start < kernel_start {
+                Some((descriptor.phys_start, kernel_start - descriptor.phys_start))
+            } else {
+                None
+            };
+            let after = if end > kernel_end {
+                Some((kernel_end, end - kernel_end))
+            } else {
+                None
+            };
+            match (before, after) {
+                (Some(first), Some(second)) => {
+                    self.pending = Some(second);
+                    return Some(first);
+                }
+                (Some(first), None) => return Some(first),
+                (None, Some(second)) => return Some(second),
+                (None, None) => {}
+            }
+        }
+        None
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -429,7 +462,7 @@ mod tests {
     }
 
     #[test]
-    fn usable_regions_excludes_kernel_even_if_map_is_sloppy() {
+    fn usable_region_iterator_excludes_kernel_without_allocating() {
         let mut bi = BootInfo::new();
         bi.firmware_desc_size = MEMORY_DESCRIPTOR_SIZE as u32;
         bi.memory_map_count = 1;
@@ -443,11 +476,11 @@ mod tests {
         };
         bi.kernel_start = 0x1000_2000;
         bi.kernel_end = 0x1000_4000;
-        let regions = bi.usable_regions();
-        assert_eq!(regions.len(), 2);
-        assert_eq!(regions[0], (0x1000_0000, 0x2000));
-        assert_eq!(regions[1], (0x1000_4000, 0xC000));
-        let total: u64 = regions.iter().map(|(_, s)| s).sum();
+        let mut regions = bi.usable_regions();
+        assert_eq!(regions.next(), Some((0x1000_0000, 0x2000)));
+        assert_eq!(regions.next(), Some((0x1000_4000, 0xC000)));
+        assert_eq!(regions.next(), None);
+        let total: u64 = bi.usable_regions().map(|(_, size)| size).sum();
         assert_eq!(total, 14 * PAGE_SIZE);
     }
 }

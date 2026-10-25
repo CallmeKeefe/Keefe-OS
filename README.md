@@ -1,86 +1,64 @@
 # KeefeOS
 
-[![CI](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml/badge.svg?branch=main)](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml) ![Experimental](https://img.shields.io/badge/status-experimental-orange) ![x86--64 only](https://img.shields.io/badge/architecture-x86--64-blue) ![Security incomplete](https://img.shields.io/badge/security-incomplete-red)
+[![CI](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml/badge.svg?branch=main)](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml) ![Experimental](https://img.shields.io/badge/status-experimental-orange) ![x86--64](https://img.shields.io/badge/architecture-x86--64-blue) ![Security incomplete](https://img.shields.io/badge/security-incomplete-red)
 
-KeefeOS is an experimental Rust operating-system project targeting an x86-64 bare-metal kernel with a UEFI boot path. It is an engineering prototype, not a production-ready operating system.
+> **Experimental OS prototype.** Physical hardware installation and production use are not supported. A successful build does not prove the image boots.
 
-## Project status
+## Current engineering status
 
-| Area | Current status |
+| Area | Status |
 |---|---|
-| Rust workspace and kernel source | Present |
-| x86-64 bare-metal target configuration | Present; build must be verified by CI |
-| UEFI bootloader source | Present |
-| Disk-image packaging helper | Present |
-| Automated compile/package workflow | Added; check the latest Actions run for its actual result |
-| Successful firmware-to-kernel boot | **Not verified** |
-| Memory-map ABI and physical/virtual mapping | Known issues remain |
-| User-space processes, IPC, production driver stack | Not claimed as complete |
-| Security certification or independent audit | Not performed |
+| Shared BootInfo and ELF64 parser | Implemented; host tests pass in the last observed CI run |
+| Kernel target build | Passed in the last observed CI run |
+| UEFI loader build | A loader integration attempt is being validated in CI |
+| ELF64 loading and BootInfo handoff | Implemented in source; runtime boot not yet verified |
+| QEMU/OVMF serial smoke test | Added to CI; must observe `KEEFEOS-KERNEL-BOOT-OK` to pass |
+| Physical frame allocator | Regression tests added; real firmware behavior still needs runtime validation |
+| Secure boot, authenticated cryptography, capability signatures | Not implemented; security-sensitive interfaces fail closed |
+| Vulnerability scanning / attack detection | Placeholder APIs; an empty result is not evidence of security |
+| ARM64, RISC-V, mobile devices | Not supported |
 
-This status is intentionally conservative: source files, roadmap statements, module names, and startup messages are not proof of working OS features.
-
-## Hardware compatibility
-
-KeefeOS is currently an x86-64 experimental prototype. It is not compatible with every device and is not yet installable. Read the [compatibility matrix](docs/COMPATIBILITY.md) for supported build targets, unverified firmware paths, and platforms that are not supported.
+See [GitHub Actions](https://github.com/CallmeKeefe/Keefe-OS/actions) for the latest build and emulation outcomes.
 
 ## Repository layout
 
-- KeefeOS/kernel — kernel binary/library plus architecture, memory, interrupt, AI, and security modules.
-- KeefeOS/bootloader — UEFI application and kernel-image embedding build script.
-- KeefeOS/xtask — host-side build orchestration, FAT image creation, and QEMU launcher.
-- KeefeOS/docs — development setup, installation/testing notes, and contributor guidance.
-- docs/audit — evidence-based audit and branch-review records.
-- docs/QWEN_CODER_PROMPT.md — detailed handoff prompt for Qwen Coder.
-- NEXUS_OS_*.md — architecture proposals and roadmap, not a guarantee that every proposal is implemented.
+- `KeefeOS/boot-protocol` — shared versioned BootInfo ABI and bounds-checked ELF64 parser.
+- `KeefeOS/bootloader` — UEFI loader for the constrained x86-64 ELF image.
+- `KeefeOS/kernel` — x86-64 kernel, memory management, interrupt setup, and experimental modules.
+- `KeefeOS/xtask` — host-side build, FAT image packaging, and QEMU helper.
+- `docs/audit` — evidence-based code/security/branch audit.
+- `docs/COMPATIBILITY.md` — known platform compatibility.
+- `docs/QWEN_CODER_PROMPT.md` — engineering handoff prompt.
 
-## Quick start (Linux or WSL2)
+## Build and test (Linux / WSL2)
 
-The current helper assumes a Linux host with QEMU and OVMF. Windows developers should use WSL2 for the documented image/QEMU flow.
-
-Install Rust nightly with the components and targets used by the workspace:
+Install nightly Rust and the bare-metal targets:
 
 ~~~sh
 rustup toolchain install nightly --component rust-src --component llvm-tools --component rustfmt --component clippy --target x86_64-unknown-none --target x86_64-unknown-uefi
+sudo apt-get update
+sudo apt-get install -y qemu-system-x86 ovmf
 ~~~
 
-On Ubuntu/Debian, install the emulator and UEFI firmware packages:
-
-~~~sh
-sudo apt update
-sudo apt install qemu-system-x86 ovmf
-~~~
-
-Build from the workspace directory:
+From the workspace directory:
 
 ~~~sh
 cd KeefeOS
+cargo +nightly fmt --all -- --check
+cargo +nightly test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
+cargo +nightly test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
+cargo +nightly check --locked --package xtask --target x86_64-unknown-linux-gnu
 cargo +nightly build --locked --package keefeos-kernel --target x86_64-unknown-none
 cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
-cargo +nightly check --locked --package xtask --target x86_64-unknown-linux-gnu
 cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 ~~~
 
-The kernel and bootloader must use the same Cargo profile. For a release image, add --release to both build commands and to the xtask image command. The bootloader embeds the kernel artifact for the selected profile.
+The CI job additionally attempts QEMU/OVMF and requires the kernel's serial boot marker. Do not claim successful boot unless that step passes. Native Windows, macOS, ARM64, RISC-V, phones, and physical-device installation are not supported.
 
-To build the image and launch QEMU in one command:
+## Security posture
 
-~~~sh
-cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- run
-~~~
+KeefeOS is not a security boundary. Secure-boot signatures, trusted randomness, authenticated encryption, a real capability verifier, runtime vulnerability scanning, and attack detection remain unimplemented. Read [SECURITY.md](SECURITY.md) and [the security status](docs/audit/SECURITY_STATUS.md).
 
-The run command depends on OVMF firmware being available in one of the Linux paths checked by the helper. The current automation does not yet provide a verified boot result.
+## Contributing
 
-## Important boot limitation
-
-The current bootloader passes an ELF kernel image through UEFI's LoadImage path and uses the loaded image base as if it were the kernel's entry point. A generic x86_64-unknown-none ELF kernel is not a UEFI application image. The kernel also uses a hard-coded UEFI memory-map descriptor layout that does not consistently match the descriptor ABI. These are boot blockers; a successful compile or disk-image build does **not** demonstrate successful boot.
-
-See [the initial codebase audit](docs/audit/INITIAL_CODEBASE_AUDIT.md), [branch consolidation report](docs/audit/BRANCH_CONSOLIDATION_REPORT.md), and [development setup guide](KeefeOS/docs/DEVELOPMENT_SETUP.md).
-
-## Development and contributions
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes. Prioritize reproducible builds, correct boot and memory handling, narrow unsafe boundaries, regression tests, and evidence-backed documentation over speculative features.
-
-## License metadata
-
-The Cargo workspace currently declares MIT OR Apache-2.0, but the canonical license text files are not present in the current repository tree. This mismatch needs to be resolved before publishing or redistributing release artifacts.
+Read [CONTRIBUTING.md](CONTRIBUTING.md). Prioritize boot correctness, memory safety, regression tests, and evidence-based documentation over speculative feature claims.
