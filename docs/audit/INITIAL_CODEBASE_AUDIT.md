@@ -63,3 +63,8 @@ Repository metadata indicated GitHub Pages disabled, no homepage, and no publish
 4. Add host-testable tests for memory-map parsing, allocator bounds, and address/flag calculations.
 5. Review unsafe Rust and test the real boot path under QEMU/OVMF.
 6. Revisit scheduler and task switching only after a safe, testable context-switch design exists.
+
+
+## Follow-up from QEMU run 40194918082
+
+CI evidence: the boot protocol/ELF parser tests, kernel unit tests, kernel ELF build, UEFI loader build, and FAT image packaging passed. The QEMU/OVMF step failed before exiting boot services because `AllocateType::Address(load_start)` returned `EFI_NOT_FOUND` for the ELF's fixed 1 MiB-based load range. A follow-up changes the static linker/parser window to 32–64 MiB to avoid the low-memory/firmware-reserved region seen in this run. This is an x86-64 QEMU bring-up step, not a universal address-allocation guarantee; if the next run still fails, the correct next solution is a relocatable kernel plus verified relocation handling, not a false green boot check.

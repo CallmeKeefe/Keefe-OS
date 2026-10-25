@@ -6,7 +6,7 @@ The current kernel uses x86-64 CPU instructions, an x86-specific UEFI loader tar
 
 | Platform / firmware | Current status | What is known |
 |---|---|---|
-| x86-64 QEMU + OVMF UEFI | BUILD/PACKAGE VERIFIED; BOOT NOT VERIFIED | CI builds the kernel ELF, UEFI loader, and FAT image. The loader currently returns UNSUPPORTED rather than jumping into an unvalidated ELF. |
+| x86-64 QEMU + OVMF UEFI | BUILD/PACKAGE VERIFIED; BOOT TEST FAILED AT FIXED-RANGE ALLOCATION | The loader validates the ELF and tries to reserve its static 1–33 MiB load range, but OVMF returned EFI_NOT_FOUND. The load window is being moved to 32–64 MiB; verify the next CI run. |
 | Modern x86-64 PC with UEFI | NOT SUPPORTED FOR INSTALLATION YET | Firmware/ACPI/memory-map handoff, GOP output, device discovery, and boot sequence are not complete. |
 | x86-64 with legacy BIOS | NOT SUPPORTED | No BIOS boot stage or BIOS image format. |
 | ARM64 / AArch64 devices | NOT SUPPORTED | No AArch64 kernel target, exception vectors, linker, boot protocol, or device drivers. |

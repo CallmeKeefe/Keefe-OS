@@ -2,7 +2,7 @@
 //!
 //! The parser accepts a deliberately narrow format: little-endian ELF64,
 //! ET_EXEC, EM_X86_64, physical and virtual load addresses equal, and all load
-//! segments within the linker script's low-memory window. It parses bytes only;
+//! segments within the linker script's reserved 32–64 MiB identity-mapped window. It parses bytes only;
 //! the caller remains responsible for reserving destination pages and copying
 //! segments before transferring control.
 
@@ -43,8 +43,8 @@ const ET_EXEC: u16 = 2;
 const EM_X86_64: u16 = 62;
 const PF_X: u32 = 1;
 const PAGE_SIZE: u64 = 4096;
-const MIN_KERNEL_ADDRESS: u64 = 0x0010_0000;
-const MAX_KERNEL_ADDRESS: u64 = 0x0210_0000; // 1 MiB + 32 MiB linker window
+const MIN_KERNEL_ADDRESS: u64 = 0x0200_0000;
+const MAX_KERNEL_ADDRESS: u64 = 0x0400_0000; // exclusive 64 MiB upper bound for the 32 MiB load window
 const MAX_PROGRAM_HEADERS: usize = 1024;
 
 /// Validated ELF64 load segment metadata.
@@ -95,7 +95,7 @@ pub struct ElfImage<'a> {
 }
 
 impl<'a> ElfImage<'a> {
-    /// Parse and validate an x86-64 ET_EXEC ELF image for the current low-memory kernel.
+    /// Parse and validate an x86-64 ET_EXEC ELF image for the fixed 32–64 MiB identity-mapped load window.
     pub fn parse(bytes: &'a [u8]) -> Result<Self, ElfError> {
         if bytes.len() < ELF_HEADER_SIZE {
             return Err(ElfError::TruncatedHeader);
@@ -286,7 +286,7 @@ mod tests {
         bytes[16..18].copy_from_slice(&ET_EXEC.to_le_bytes());
         bytes[18..20].copy_from_slice(&EM_X86_64.to_le_bytes());
         bytes[20..24].copy_from_slice(&1u32.to_le_bytes());
-        bytes[24..32].copy_from_slice(&0x10_0000u64.to_le_bytes());
+        bytes[24..32].copy_from_slice(&0x0200_0000u64.to_le_bytes());
         bytes[32..40].copy_from_slice(&64u64.to_le_bytes());
         bytes[52..54].copy_from_slice(&(ELF_HEADER_SIZE as u16).to_le_bytes());
         bytes[54..56].copy_from_slice(&(ELF_PROGRAM_HEADER_SIZE as u16).to_le_bytes());
@@ -311,7 +311,7 @@ mod tests {
         let image = ElfImage::parse(&bytes).unwrap();
         assert_eq!(image.entry(), 0x10_0000);
         assert_eq!(image.load_start(), 0x10_0000);
-        assert_eq!(image.load_end(), 0x10_1000);
+        assert_eq!(image.load_end(), 0x0200_1000);
         let segment = image.segment_at(0).unwrap().unwrap();
         assert_eq!(image.segment_bytes(segment).unwrap(), &[0xC3]);
     }

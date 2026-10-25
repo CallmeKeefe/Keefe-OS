@@ -1,14 +1,13 @@
 /* KeefeOS Kernel Linker Script for x86_64
  * 
  * This linker script defines the memory layout of the kernel.
- * We use a higher-half kernel design where the kernel is mapped
- * at a high virtual address (0xFFFF800000000000) to separate it
- * from user-space memory (0x0000000000000000 - 0x00007FFFFFFFFFFF).
+ * Current boot protocol uses a low identity-mapped ET_EXEC image at 32–64 MiB.
+ * The higher-half design described in earlier comments is not implemented yet.
  * 
  * Memory Layout:
- * - 0x0000000000000000 - 0x00007FFFFFFFFFFF: User space (128 TB)
- * - 0x0000800000000000 - 0xFFFF7FFFFFFFFFFF: Unused (guard space)
- * - 0xFFFF800000000000 - 0xFFFFFFFFFFFFFFFF: Kernel space (128 TB)
+ * - 0x00000000 - 0x02000000: low firmware/legacy region and boot data
+ * - 0x02000000 - 0x04000000: fixed prototype kernel load window
+ * - Remaining virtual address space: not yet configured for user/kernel isolation
  */
 
 /* Define the entry point for the kernel */
@@ -17,9 +16,9 @@ ENTRY(kernel_start)
 /* Define memory regions */
 MEMORY
 {
-    /* The kernel will be loaded at 1MB (0x100000) by the bootloader */
-    /* This avoids the legacy BIOS area (0xA0000 - 0xFFFFF) */
-    KERNEL_RAM : ORIGIN = 0x00100000, LENGTH = 32M
+    /* The kernel is linked at 32 MiB; the loader reserves the exact ET_EXEC load span */
+    /* This avoids low firmware/legacy regions; this is a fixed x86-64 prototype address, not dynamic relocation */
+    KERNEL_RAM : ORIGIN = 0x02000000, LENGTH = 32M
 }
 
 /* Stack size for the kernel (per-CPU stacks are allocated separately) */
