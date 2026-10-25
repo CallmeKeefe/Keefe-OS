@@ -252,6 +252,45 @@ impl BootInfo {
         Ok(())
     }
 
+    /// Return whether a physical range is fully covered by reserved,
+    /// non-conventional memory descriptors. Adjacent descriptors may jointly
+    /// cover the range; gaps and conventional RAM are rejected.
+    ///
+    /// The caller must first run structural validation and must interpret the
+    /// result as a firmware memory-map reservation check, not proof that a
+    /// device mapping remains accessible after firmware services exit.
+    pub fn range_is_reserved(&self, start: u64, size: u64) -> bool {
+        if size == 0 {
+            return false;
+        }
+        let Some(end) = start.checked_add(size) else {
+            return false;
+        };
+        let entries = &self.memory_map[..self.memory_map_count as usize];
+        let mut cursor = start;
+        while cursor < end {
+            let next = entries
+                .iter()
+                .filter(|descriptor| descriptor.ty != 7)
+                .filter_map(|descriptor| {
+                    let descriptor_end = Self::descriptor_end(descriptor)?;
+                    if descriptor.phys_start <= cursor && cursor < descriptor_end {
+                        Some(descriptor_end)
+                    } else {
+                        None
+                    }
+                })
+                .max();
+            match next {
+                Some(descriptor_end) if descriptor_end > cursor => {
+                    cursor = descriptor_end.min(end);
+                }
+                _ => return false,
+            }
+        }
+        true
+    }
+
     /// Byte end of a descriptor's physical range (checked).
     #[must_use]
     pub fn descriptor_end(d: &MemoryDescriptor) -> Option<u64> {
@@ -309,24 +348,10 @@ impl BootInfo {
             return Err(BootInfoError::KernelRangeNotReserved);
         }
 
-        // A reported framebuffer must be fully covered by a reserved,
-        // non-conventional descriptor so it can never be allocated as RAM.
-        if self.fb_addr != 0 {
-            let framebuffer_end = self.fb_addr
-                .checked_add(self.fb_size)
-                .ok_or(BootInfoError::InvalidFramebuffer)?;
-            let framebuffer_reserved = entries.iter().any(|descriptor| {
-                if descriptor.ty == 7 {
-                    return false;
-                }
-                match Self::descriptor_end(descriptor) {
-                    Some(end) => descriptor.phys_start <= self.fb_addr && framebuffer_end <= end,
-                    None => false,
-                }
-            });
-            if !framebuffer_reserved {
-                return Err(BootInfoError::InvalidFramebuffer);
-            }
+        // A reported framebuffer must be fully covered by reserved memory;
+        // adjacent descriptors may jointly cover it, but gaps/conventional RAM fail.
+        if self.fb_addr != 0 && !self.range_is_reserved(self.fb_addr, self.fb_size) {
+            return Err(BootInfoError::InvalidFramebuffer);
         }
 
         Ok(())
@@ -490,6 +515,40 @@ mod tests {
             bi.semantic_check(),
             Err(BootInfoError::InvalidFramebuffer)
         );
+    }
+
+    #[test]
+    fn reserved_range_accepts_adjacent_reserved_descriptors() {
+        let mut bi = sample();
+        bi.memory_map_count = 4;
+        bi.memory_map[2] = MemoryDescriptor {
+            ty: 11, _pad: 0, phys_start: 0x3000_0000,
+            virt_start: 0, page_count: 1, att: 0,
+        };
+        bi.memory_map[3] = MemoryDescriptor {
+            ty: 11, _pad: 0, phys_start: 0x3000_1000,
+            virt_start: 0, page_count: 1, att: 0,
+        };
+        assert!(bi.range_is_reserved(0x3000_0000, 0x2000));
+    }
+
+    #[test]
+    fn reserved_range_rejects_gaps_and_conventional_ram() {
+        let mut bi = sample();
+        bi.memory_map_count = 4;
+        bi.memory_map[2] = MemoryDescriptor {
+            ty: 11, _pad: 0, phys_start: 0x3000_0000,
+            virt_start: 0, page_count: 1, att: 0,
+        };
+        bi.memory_map[3] = MemoryDescriptor {
+            ty: 11, _pad: 0, phys_start: 0x3000_2000,
+            virt_start: 0, page_count: 1, att: 0,
+        };
+        assert!(!bi.range_is_reserved(0x3000_0000, 0x3000));
+
+        bi.memory_map[3].phys_start = 0x3000_1000;
+        bi.memory_map[3].ty = 7;
+        assert!(!bi.range_is_reserved(0x3000_0000, 0x2000));
     }
 
     #[test]

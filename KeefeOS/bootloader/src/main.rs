@@ -204,30 +204,40 @@ fn efi_main() -> Status {
         };
     }
 
-    // Advertise GOP only when the final memory map confirms that the entire
-    // framebuffer range is reserved/non-conventional. Otherwise stay serial-only.
+    // Advertise GOP only if the complete buffer is covered by contiguous
+    // reserved descriptors. Conventional RAM and physical gaps remain rejected.
     if let Some(info) = gop_info {
-        if let Some(framebuffer_end) = info.base.checked_add(info.size) {
-            let covered_by_reserved_range = boot_info.memory_map
-                [..boot_info.memory_map_count as usize]
-                .iter()
-                .any(|descriptor| {
-                    if descriptor.ty == 7 {
-                        return false;
+        boot_info.fb_addr = info.base;
+        boot_info.fb_size = info.size;
+        boot_info.fb_pixel_format = info.pixel_format;
+        boot_info.fb_horiz_res = info.width;
+        boot_info.fb_vert_res = info.height;
+        boot_info.fb_pixels_per_scan_line = info.stride;
+
+        if !boot_info.range_is_reserved(info.base, info.size) {
+            log::warn!("GOP framebuffer is not fully covered by reserved memory descriptors; using serial-only output");
+            if let Some(framebuffer_end) = info.base.checked_add(info.size) {
+                for descriptor in boot_info.memory_map[..boot_info.memory_map_count as usize].iter() {
+                    if let Some(descriptor_end) = BootInfo::descriptor_end(descriptor) {
+                        if descriptor.phys_start < framebuffer_end && info.base < descriptor_end {
+                            log::warn!(
+                                "GOP overlap with memory descriptor type={} range={:#x}..{:#x}",
+                                descriptor.ty,
+                                descriptor.phys_start,
+                                descriptor_end
+                            );
+                        }
                     }
-                    match BootInfo::descriptor_end(descriptor) {
-                        Some(end) => descriptor.phys_start <= info.base && framebuffer_end <= end,
-                        None => false,
-                    }
-                });
-            if covered_by_reserved_range {
-                boot_info.fb_addr = info.base;
-                boot_info.fb_size = info.size;
-                boot_info.fb_pixel_format = info.pixel_format;
-                boot_info.fb_horiz_res = info.width;
-                boot_info.fb_vert_res = info.height;
-                boot_info.fb_pixels_per_scan_line = info.stride;
+                }
             }
+            boot_info.fb_addr = 0;
+            boot_info.fb_size = 0;
+            boot_info.fb_pixel_format = 0;
+            boot_info.fb_horiz_res = 0;
+            boot_info.fb_vert_res = 0;
+            boot_info.fb_pixels_per_scan_line = 0;
+        } else {
+            log::info!("GOP framebuffer range is covered by reserved memory descriptors");
         }
     }
 
