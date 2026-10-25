@@ -424,7 +424,7 @@ impl FramebufferWriter {
     ) {
         let columns = glyph(ch);
         for (column, pattern) in columns.iter().enumerate() {
-            for row in 0..7 {
+            for row in 0usize..7 {
                 if *pattern & (1u8 << row) == 0 {
                     continue;
                 }
