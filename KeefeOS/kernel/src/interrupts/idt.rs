@@ -42,7 +42,7 @@ pub fn init() {
     idt.page_fault.set_handler_fn(page_fault_handler);
     idt.x87_floating_point.set_handler_fn(fatal_no_error);
     idt.alignment_check.set_handler_fn(fatal_with_error);
-    idt.machine_check.set_handler_fn(fatal_no_error);
+    idt.machine_check.set_handler_fn(fatal_machine_check);
     idt.simd_floating_point.set_handler_fn(fatal_no_error);
     idt.virtualization.set_handler_fn(fatal_no_error);
 
@@ -80,7 +80,7 @@ extern "x86-interrupt" fn fatal_double_fault(
 extern "x86-interrupt" fn page_fault_handler(
     frame: InterruptStackFrame,
     error_code: PageFaultErrorCode,
-) -> ! {
+) {
     let faulting_address = match Cr2::read() {
         Ok(address) => address,
         Err(_) => {
@@ -90,6 +90,12 @@ extern "x86-interrupt" fn page_fault_handler(
     };
     println!("FATAL: page fault at {:#018x}", faulting_address.as_u64());
     println!("Error flags={:#x}", error_code.bits());
+    println!("RIP={:#018x}", frame.instruction_pointer.as_u64());
+    fatal_halt();
+}
+
+extern "x86-interrupt" fn fatal_machine_check(frame: InterruptStackFrame) -> ! {
+    println!("FATAL: machine check exception");
     println!("RIP={:#018x}", frame.instruction_pointer.as_u64());
     fatal_halt()
 }
