@@ -19,7 +19,7 @@ use keefeos_boot_protocol::elf::ElfImage;
 use uefi::boot::{self, AllocateType, MemoryType};
 use uefi::mem::memory_map::MemoryMap;
 use uefi::prelude::*;
-use uefi::proto::console::gop::{GraphicsOutput, PixelFormat};
+use uefi::proto::console::gop::{BltOp, BltPixel, GraphicsOutput, PixelFormat};
 
 static KERNEL_BINARY: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/keefeos-kernel"));
@@ -37,6 +37,11 @@ fn efi_main() -> Status {
     log::info!("        KeefeOS UEFI loader");
     log::info!("========================================");
     log::info!("Embedded kernel artifact: {} bytes", KERNEL_BINARY.len());
+    if render_uefi_splash() {
+        log::info!("UEFI GOP splash drawn through firmware BLT; serial remains the boot diagnostic channel");
+    } else {
+        log::info!("UEFI GOP splash unavailable; continuing with serial-only diagnostics");
+    }
     let gop_info = discover_framebuffer();
     if let Some(info) = gop_info {
         log::info!(
@@ -276,6 +281,109 @@ fn efi_main() -> Status {
     let kernel_entry: extern "sysv64" fn(u64) -> ! =
         unsafe { core::mem::transmute(entry_address) };
     kernel_entry(boot_info_address)
+}
+
+/// Draw a small boot splash through the UEFI GOP BLT API before exiting
+/// boot services. This deliberately uses firmware operations instead of raw
+/// framebuffer pointers, so it remains safe even when the final memory map
+/// does not provide a usable direct-mapping contract for the display aperture.
+fn render_uefi_splash() -> bool {
+    let Ok(handle) = boot::get_handle_for_protocol::<GraphicsOutput>() else {
+        return false;
+    };
+    let Ok(mut gop) = boot::open_protocol_exclusive::<GraphicsOutput>(handle) else {
+        return false;
+    };
+    let (screen_width, screen_height) = gop.current_mode_info().resolution();
+    if screen_width < 160 || screen_height < 120 {
+        return false;
+    }
+
+    let panel_width = screen_width.min(820);
+    let panel_height = screen_height.min(460);
+    let panel_x = (screen_width - panel_width) / 2;
+    let panel_y = (screen_height - panel_height) / 2;
+
+    let fill = |gop: &mut GraphicsOutput,
+                x: usize,
+                y: usize,
+                width: usize,
+                height: usize,
+                color: BltPixel| -> bool {
+        if x >= screen_width || y >= screen_height {
+            return true;
+        }
+        let width = width.min(screen_width - x);
+        let height = height.min(screen_height - y);
+        if width == 0 || height == 0 {
+            return true;
+        }
+        gop.blt(BltOp::VideoFill {
+            color,
+            dest: (x, y),
+            dims: (width, height),
+        })
+        .is_ok()
+    };
+
+    let background = BltPixel::new(8, 14, 28);
+    let panel = BltPixel::new(17, 28, 47);
+    let accent = BltPixel::new(57, 224, 198);
+    let muted = BltPixel::new(79, 101, 128);
+    let pale = BltPixel::new(224, 236, 248);
+
+    // Abort the splash if any firmware BLT operation fails; do not fall back to
+    // direct writes. The OS loader and serial path can continue independently.
+    if !fill(&mut gop, 0, 0, screen_width, screen_height, background)
+        || !fill(&mut gop, 0, 0, screen_width, 5, accent)
+        || !fill(&mut gop, panel_x, panel_y, panel_width, panel_height, panel)
+        || !fill(&mut gop, panel_x, panel_y, panel_width, 4, accent)
+    {
+        return false;
+    }
+
+    // Geometric "K" mark: large vertical stroke plus upper/lower diagonals.
+    let logo_x = panel_x + 48;
+    let logo_y = panel_y + 76;
+    let cell = 10;
+    if !fill(&mut gop, logo_x, logo_y, 12, 90, accent) {
+        return false;
+    }
+    for row in 0..5usize {
+        let upper_x = logo_x + 12 + row * cell;
+        let upper_y = logo_y + row * cell;
+        let lower_x = logo_x + 12 + row * cell;
+        let lower_y = logo_y + 42usize.saturating_sub(row * cell);
+        if !fill(&mut gop, upper_x, upper_y, 20, 12, accent)
+            || !fill(&mut gop, lower_x, lower_y, 20, 12, accent)
+        {
+            return false;
+        }
+    }
+
+    // Abstract title/status bars to give a clean, legible boot splash without
+    // assuming a particular GOP font or pixel format.
+    let text_x = logo_x + 108;
+    let content_width = panel_width.saturating_sub(180);
+    if !fill(&mut gop, text_x, logo_y + 4, content_width.min(300), 8, pale)
+        || !fill(&mut gop, text_x, logo_y + 28, content_width.min(390), 5, muted)
+        || !fill(&mut gop, text_x, logo_y + 44, content_width.min(330), 5, muted)
+        || !fill(&mut gop, text_x, logo_y + 60, content_width.min(250), 5, muted)
+    {
+        return false;
+    }
+
+    let rail_x = panel_x + 48;
+    let rail_y = panel_y + panel_height - 48;
+    let rail_width = panel_width.saturating_sub(96);
+    if !fill(&mut gop, rail_x, rail_y, rail_width, 8, muted)
+        || !fill(&mut gop, rail_x, rail_y, rail_width.saturating_mul(2) / 3, 8, accent)
+        || !fill(&mut gop, rail_x, rail_y + 18, rail_width.min(220), 3, muted)
+    {
+        return false;
+    }
+
+    true
 }
 
 #[derive(Debug, Clone, Copy)]
