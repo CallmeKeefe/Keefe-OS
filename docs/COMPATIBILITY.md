@@ -1,32 +1,34 @@
 # KeefeOS hardware and platform compatibility
 
-**Status: early boot and firmware-rendered splash verified in one emulator configuration; not an end-user installable OS.**
+**Status: early boot and UEFI splash verified in three QEMU RAM profiles; not an end-user installable OS.**
 
-The latest evidence is [GitHub Actions run 40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209), commit `98f1830908c57861910df866a51dfafa138b0d04`. It passed 22 boot-protocol tests, 31 kernel tests, both target builds, image packaging, and a QEMU/OVMF serial boot smoke test. OVMF accepted the GOP BLT operations used to draw a readable splash before ExitBootServices. The kernel reached `KEEFEOS-KERNEL-BOOT-OK`.
+Evidence: [GitHub Actions run 40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679), commit `df97691cdecd26ff3a099b981b542817088683b1`. The workflow passed 22 boot-protocol tests, 31 kernel tests, both target builds, image packaging, and the serial boot/splash smoke test at 256 MiB, 512 MiB, and 1 GiB RAM. OVMF rendered the splash through GOP BLT before ExitBootServices, and the kernel emitted `KEEFEOS-KERNEL-BOOT-OK` in each profile.
 
 | Platform / firmware | Current status | Evidence / limitation |
 |---|---|---|
-| x86-64 QEMU + OVMF UEFI | **EARLY BOOT + UEFI SPLASH VERIFIED** | BootInfo validation and kernel idle-path marker observed. GOP firmware BLT drew the pre-boot splash. Fixed 32–64 MiB load window; one virtual hardware profile only. |
-| Kernel direct framebuffer console | **FAIL-CLOSED / NOT ENABLED** | The final UEFI memory map has a gap over the GOP framebuffer range. Kernel refuses direct writes rather than assume that an untracked range is mapped safely. |
-| Physical x86-64 PC with UEFI | NOT VERIFIED / NOT SUPPORTED FOR INSTALLATION | ACPI, PCI/device enumeration, storage/input/network drivers, platform power handling and diverse firmware need work. |
-| Other UEFI firmware implementations | NOT VERIFIED | No test matrix across vendor firmware or differing memory maps. |
-| VirtualBox / VMware / Hyper-V | NOT VERIFIED | No serial smoke-test evidence yet. |
-| Legacy BIOS | NOT SUPPORTED | No BIOS boot stage or BIOS image format. |
-| ARM64 / AArch64 | NOT SUPPORTED | No AArch64 kernel target, boot protocol, exception vectors, linker or drivers. |
-| RISC-V | NOT SUPPORTED | No RISC-V target, trap handling, linker or boot protocol. |
-| Apple Silicon Macs | NOT SUPPORTED as a native boot target | ARM64 and platform boot requirements are not implemented. |
-| Android/iOS phones and tablets | NOT SUPPORTED | No mobile SoC support, touch/display stack, power management or drivers. |
-| Consoles, embedded boards, SBCs | NOT SUPPORTED BY DEFAULT | Each needs a board-specific boot path, memory map, interrupt controller and drivers. |
+| x86-64 QEMU + OVMF, 256 MiB RAM | **EARLY BOOT VERIFIED** | Kernel marker and firmware GOP splash passed in run 40201976679. |
+| x86-64 QEMU + OVMF, 512 MiB RAM | **EARLY BOOT VERIFIED** | Kernel marker and firmware GOP splash passed in run 40201976679. |
+| x86-64 QEMU + OVMF, 1 GiB RAM | **EARLY BOOT VERIFIED** | Kernel marker and firmware GOP splash passed in run 40201976679. |
+| Kernel direct framebuffer console | **FAIL-CLOSED / NOT ENABLED** | The final UEFI memory map has a gap over the GOP range. Direct kernel writes are refused. |
+| Physical x86-64 PC with UEFI | NOT VERIFIED / NOT SUPPORTED FOR INSTALLATION | ACPI, PCI/device enumeration, storage/input/network drivers, power handling, and firmware variation need work. |
+| Other UEFI firmware implementations | NOT VERIFIED | No vendor firmware matrix. |
+| VirtualBox / VMware / Hyper-V | NOT VERIFIED | No smoke-test evidence. |
+| Legacy BIOS | NOT SUPPORTED | No BIOS boot stage or image format. |
+| ARM64 / AArch64 | NOT SUPPORTED | No AArch64 target, boot protocol, exception vectors, linker, or drivers. |
+| RISC-V | NOT SUPPORTED | No RISC-V target, trap handling, linker, or boot protocol. |
+| Apple Silicon Macs | NOT SUPPORTED as native boot targets | ARM64 and platform boot requirements are absent. |
+| Android/iOS phones and tablets | NOT SUPPORTED | No mobile SoC, touch/display stack, power management, or driver support. |
+| Consoles, embedded boards, SBCs | NOT SUPPORTED BY DEFAULT | Each needs a board-specific boot path, memory map, interrupt controller, and drivers. |
 
 ## Next compatibility milestones
 
-1. Define and test an explicit MMIO mapping contract for the GOP framebuffer; do not weaken the reserved-range check merely to enable drawing.
-2. Remove the fixed load-address limitation by implementing a relocatable kernel and verified relocation handling, or keep the fixed layout explicitly constrained.
-3. Test memory-map parsing and allocator behavior across varied QEMU memory sizes and virtual device profiles.
-4. Add ACPI parsing, PCI enumeration, and selected virtual storage/input/network drivers.
-5. Test alternate QEMU configurations, then selected physical hardware with recovery and non-destructive test procedures.
-6. Build separate AArch64/RISC-V architecture backends with boot, exception, paging, atomics and CI; do not advertise compatibility until tests pass.
+1. Investigate the GOP memory-map gap and design a safe MMIO/page-table mapping before enabling persistent kernel framebuffer writes.
+2. Remove the fixed load-address limitation with a properly tested relocatable kernel, or keep the fixed layout explicitly constrained.
+3. Add QEMU device/firmware variations and repeated boot tests.
+4. Implement ACPI, PCI discovery, and selected virtual storage/input/network drivers only after memory and boot contracts stabilize.
+5. Test selected physical hardware only with safe non-destructive procedures and a recovery plan.
+6. Build independent AArch64/RISC-V architecture backends and CI; do not claim support until they build and pass boot tests.
 
 ## Safety
 
-Do not install this prototype on physical hardware or on disks with valuable data. There is no supported end-user installer, upgrade path, recovery environment or production configuration.
+Do not install this prototype on physical hardware or disks with valuable data. There is no end-user installer, upgrade path, recovery environment, or production configuration.

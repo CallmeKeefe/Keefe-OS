@@ -4,13 +4,13 @@ This guide covers source builds, tests, and a disposable QEMU image. It does not
 
 ## Verified test path
 
-One x86-64 QEMU + OVMF UEFI boot passed in [Actions run 40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209) at commit `98f1830908c57861910df866a51dfafa138b0d04`. The run passed 22 boot-protocol tests and 31 kernel tests, and serial output showed BootInfo validation and `KEEFEOS-KERNEL-BOOT-OK`. The firmware also accepted GOP BLT operations for a readable boot splash.
+[GitHub Actions run 40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679) at commit `df97691cdecd26ff3a099b981b542817088683b1` passed 22 boot-protocol tests, 31 kernel tests, the host helper check, both target builds, image packaging, and QEMU/OVMF boot and splash checks at 256 MiB, 512 MiB, and 1 GiB RAM. Each profile logged `UEFI GOP splash drawn through firmware BLT` and `KEEFEOS-KERNEL-BOOT-OK`.
 
-This is a single emulator configuration. Physical machines, other UEFI implementations, native Windows/macOS hosts, ARM64, RISC-V, phones, and other hypervisors are not verified. The loader currently uses a fixed 32–64 MiB x86-64 kernel load window rather than a relocatable image.
+This is still a single QEMU/OVMF firmware/device setup with varying RAM sizes. Physical machines, other UEFI implementations, native Windows/macOS hosts, ARM64, RISC-V, phones, and other hypervisors are not verified. The loader uses a fixed 32–64 MiB x86-64 kernel load window, not a relocatable image.
 
 ## Prerequisites
 
-Use Linux or WSL2 with Ubuntu for the documented image/QEMU path. Install Rust nightly and required targets:
+Use Linux or WSL2 with Ubuntu. Install Rust nightly and targets:
 
 ```sh
 rustup toolchain install nightly --component rust-src --component llvm-tools --component rustfmt --component clippy --target x86_64-unknown-none --target x86_64-unknown-uefi
@@ -20,7 +20,7 @@ sudo apt-get install -y qemu-system-x86 ovmf
 
 ## Build and tests
 
-Run from the repository root:
+From the repository root:
 
 ```sh
 cd KeefeOS
@@ -33,18 +33,14 @@ cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unkno
 cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 ```
 
-Build the kernel before the loader because the loader embeds the kernel artifact. Keep profiles aligned; pass `--release` to each relevant build and image command for release artifacts.
-
-## QEMU/OVMF smoke test
-
-The GitHub Actions workflow is the authoritative tested path. It discovers OVMF firmware, assembles the FAT image, launches QEMU, captures serial output, and fails unless `KEEFEOS-KERNEL-BOOT-OK` is present. The run uses a disposable copy of the OVMF variable-store image.
+CI runs the QEMU memory matrix and fails unless every profile renders the UEFI splash through BLT and reaches the kernel boot marker. Logs are uploaded per RAM size.
 
 ## Known limitations
 
-- The kernel load address is fixed, not dynamically relocatable.
-- The page-table/higher-half work is still experimental; the current smoke test uses the firmware-provided address space through early boot.
-- UEFI draws a visual splash via GOP BLT before ExitBootServices. The kernel's direct framebuffer console remains disabled because the final memory map has a gap over the GOP range; kernel diagnostics remain serial.
-- Build warnings remain and require cleanup.
-- Security, AI, scanner, and attack-detection modules are experimental placeholders; do not rely on them as protections.
+- Fixed kernel load address; no dynamic relocation.
+- Full higher-half/page-table setup and process isolation are not verified.
+- Firmware UEFI BLT draws the boot splash; the kernel's direct framebuffer console remains disabled due to a gap in the final memory map.
+- Build warnings remain and need triage.
+- Security/AI/scanner/attack-detection modules are not production protections.
 
-Do not install this prototype on physical hardware or test it against drives containing valuable data.
+Do not install this prototype on physical hardware or use disks containing valuable data.

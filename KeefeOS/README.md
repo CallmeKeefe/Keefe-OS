@@ -1,23 +1,23 @@
 # KeefeOS — experimental Rust operating-system prototype
 
-KeefeOS is an experimental x86-64 bare-metal kernel and UEFI loader. One early boot path has been verified in QEMU/OVMF, but this is not a general-purpose or production-ready operating system.
+KeefeOS is an experimental x86-64 bare-metal kernel and UEFI loader. Early boot has been verified only in QEMU/OVMF, not as a general-purpose or production-ready OS.
 
-## Verified status
+## Latest verified status
 
-GitHub Actions run [40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209) passed 22 boot-protocol tests, 31 kernel unit tests, both builds, image packaging, and the QEMU/OVMF serial smoke test at commit `98f1830908c57861910df866a51dfafa138b0d04`. The firmware accepted the GOP BLT calls for a readable pre-boot splash, and the kernel emitted `KEEFEOS-KERNEL-BOOT-OK` after validating BootInfo.
+[GitHub Actions run 40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679), commit `df97691cdecd26ff3a099b981b542817088683b1`, passed 22 boot-protocol tests, 31 kernel unit tests, the host helper check, both builds, image packaging, and QEMU/OVMF boot/splash tests at 256 MiB, 512 MiB, and 1 GiB RAM. The kernel emitted `KEEFEOS-KERNEL-BOOT-OK` in all three profiles.
 
-The tested kernel uses a **fixed 32–64 MiB x86-64 load window**. Relocation is not implemented. The UEFI splash uses firmware BLT before exiting boot services. The post-boot framebuffer console is still fail-closed because the final memory map has a gap over the GOP range. This does not prove support for physical hardware or every UEFI implementation. ACPI, PCI enumeration, a broad driver stack, multi-architecture support, secure boot, real cryptography, and user-space isolation remain incomplete.
+The loader draws a UEFI GOP splash using firmware BLT before ExitBootServices. The persistent kernel framebuffer console remains fail-closed because the final memory map has a gap across the GOP range. The kernel is linked for a fixed **32–64 MiB x86-64 load window**; relocation is not implemented.
 
 ## Workspace packages
 
-- `boot-protocol`: versioned BootInfo and bounds-checked ELF64 parsing.
-- `bootloader`: UEFI application and ELF segment loading.
-- `kernel`: x86-64 bare-metal kernel and experimental subsystems.
+- `boot-protocol`: versioned BootInfo and bounded ELF64 parser.
+- `bootloader`: UEFI application and kernel segment loading.
+- `kernel`: x86-64 kernel and experimental subsystem APIs.
 - `xtask`: host-side image and QEMU helper.
 
 ## Build and test
 
-Use Rust nightly with `rust-src`, `llvm-tools`, `rustfmt`, `clippy`, and the `x86_64-unknown-none` / `x86_64-unknown-uefi` targets. Linux or WSL2 is the documented build and QEMU environment.
+Use Rust nightly with `rust-src`, `llvm-tools`, `rustfmt`, `clippy`, `x86_64-unknown-none`, and `x86_64-unknown-uefi`. Linux/WSL2 with QEMU and OVMF is the current development path.
 
 ```sh
 cargo +nightly fmt --all -- --check
@@ -28,8 +28,8 @@ cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unkno
 cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 ```
 
-From the repository root, run the full QEMU smoke test via GitHub Actions or the documented QEMU setup. A successful build/image generation does not itself establish a boot.
+CI performs the actual QEMU/OVMF boot matrix. A successful build or image generation is not by itself evidence of a boot.
 
-## Security
+## Security and compatibility
 
-The security APIs are a prototype interface, not a security boundary. Cryptography, trusted random generation, signature verification, vulnerability scanning and attack detection are not implemented as reliable controls. See root `SECURITY.md` and `docs/audit/SECURITY_STATUS.md`.
+Security APIs are prototypes, not a security boundary. Real cryptography, trusted randomness, signature verification, vulnerability scanning, and attack detection are not implemented as reliable controls. Hardware support is x86-64 QEMU/OVMF only for the cited memory profiles; physical hardware, ARM64, RISC-V, phones, and other hypervisors are not verified. See root `README.md`, `CONTRIBUTING.md`, and `docs/audit/SECURITY_STATUS.md`.

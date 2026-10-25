@@ -2,51 +2,58 @@
 
 [![CI](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml/badge.svg?branch=main)](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml) ![Experimental](https://img.shields.io/badge/status-experimental-orange) ![Architecture x86-64](https://img.shields.io/badge/architecture-x86--64-blue) ![Security incomplete](https://img.shields.io/badge/security-incomplete-red)
 
-> **Experimental OS prototype.** An early kernel boot has been verified in QEMU/OVMF, but physical hardware installation and production use are not supported. The kernel uses a fixed physical load window and only one emulator configuration has been validated.
+> **Experimental OS prototype.** Early boot is verified only under x86-64 QEMU + OVMF UEFI. Physical installation and production use are not supported. The kernel uses a fixed load window; the persistent kernel framebuffer console remains disabled unless firmware memory-map coverage can be proved.
 
 ## Latest verified milestone
 
-**PASS:** [GitHub Actions run 40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209), commit `98f1830908c57861910df866a51dfafa138b0d04`.
+**PASS:** [GitHub Actions run 40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679), commit `df97691cdecd26ff3a099b981b542817088683b1`.
 
-The run passed 22 boot-protocol/ELF tests, 31 kernel unit tests, the kernel and UEFI-loader builds, disk-image packaging, and the QEMU/OVMF serial smoke test. The firmware accepted all GOP BLT operations used to draw a readable boot splash before exiting boot services. The serial log reported:
+The run passed 22 boot-protocol/ELF tests, 31 kernel unit tests, the host helper check, kernel and UEFI-loader builds, image packaging, and a QEMU/OVMF boot matrix at **256 MiB, 512 MiB, and 1 GiB RAM**. In every profile, the firmware rendered the UEFI GOP splash before ExitBootServices and the kernel emitted `KEEFEOS-KERNEL-BOOT-OK`.
+
+Representative serial output:
 
 ```text
+PASS: 256 MiB RAM boot marker and GOP splash verified.
 UEFI GOP splash drawn through firmware BLT
-GOP candidate: 0x80000000, 4096000 bytes, 1280x800, stride 1280
 GOP range has a gap in the final memory map; unsafe framebuffer writes refused
 KEEFEOS-KERNEL-BOOT-OK
+PASS: 512 MiB RAM boot marker and GOP splash verified.
+PASS: 1024 MiB RAM boot marker and GOP splash verified.
 ```
 
-This verifies one x86-64 QEMU + OVMF boot path and a firmware-rendered splash. The kernel's persistent framebuffer console remains disabled because the final UEFI memory map does not fully describe the framebuffer range; serial remains the authoritative kernel diagnostic channel. It does **not** establish physical-device support, a general-purpose OS, secure boot, working user-space isolation, or production security. Build warnings remain and should be reduced.
+This verifies three QEMU RAM profiles using the same x86-64 QEMU/OVMF setup. It does **not** prove support for physical computers, different firmware implementations or hypervisors, universal hardware compatibility, secure boot, full user-space isolation, or production security. Compiler warnings remain.
 
 ## Current engineering status
 
 | Area | Status |
 |---|---|
-| Shared BootInfo ABI and bounds-checked ELF64 parser | Implemented; host tests pass in the verified run |
-| Kernel/UEFI loader builds | Passed in the verified run |
-| QEMU/OVMF early boot | **Passed** for one QEMU x86-64 configuration |
+| BootInfo ABI and bounded ELF64 parser | 22 protocol tests passed |
+| Kernel unit tests | 31 passed |
+| Kernel / UEFI loader builds | Passed in the cited CI run |
+| QEMU/OVMF early boot | Passed with 256 MiB, 512 MiB, and 1 GiB RAM |
+| UEFI visual boot splash | Passed using firmware GOP BLT before ExitBootServices |
 | Kernel load address | Fixed 32–64 MiB identity-mapped window; relocation is not implemented |
-| Memory map | Versioned BootInfo with structural/semantic checks; broader firmware edge cases still need testing |
-| Physical frame allocator | Regression tests added; only the emulator path has been exercised |
-| UEFI visual boot splash | PASS in QEMU via firmware BLT before ExitBootServices |\n| Persistent kernel framebuffer console | Safely disabled; final UEFI map has a gap covering the GOP range, so direct writes are refused |
-| ACPI, PCI, storage, USB, network, input and power management | Not implemented as a general driver stack |
-| Secure boot, authenticated cryptography, capability signatures | Not implemented; security-sensitive interfaces fail closed |
-| Vulnerability scanner / attack detection | Placeholder APIs; empty output does not mean a clean system |
+| Direct kernel framebuffer console | Safely disabled: final UEFI map has a gap across the GOP range |
+| Physical frame allocator | Regression tests exist; firmware-map and runtime stress coverage remain limited |
+| Paging / higher-half model | Experimental; full page-table lifecycle and isolation are not verified |
+| ACPI, PCI, storage, USB, network, input, and power management | No general driver stack |
+| Secure boot, authenticated cryptography, capability signatures | Not implemented; sensitive APIs fail closed |
+| Vulnerability scanner / attack detector | Placeholder interfaces; empty results do not mean a clean system |
 | ARM64, RISC-V, mobile devices | Not supported |
+| End-user installer / recovery / upgrades | Not implemented |
 
-Check [Actions](https://github.com/CallmeKeefe/Keefe-OS/actions) for the latest result. A later commit may have a different status from the run cited above.
+Check [GitHub Actions](https://github.com/CallmeKeefe/Keefe-OS/actions) for the latest result. Results from later commits may differ.
 
 ## Repository layout
 
-- `KeefeOS/boot-protocol` — shared versioned BootInfo ABI and bounds-checked ELF64 parser.
-- `KeefeOS/bootloader` — UEFI loader for the constrained x86-64 ELF image.
-- `KeefeOS/kernel` — x86-64 kernel, memory management, interrupt setup and experimental modules.
-- `KeefeOS/xtask` — host-side build, FAT image packaging and QEMU helper.
-- `docs/audit/OS_STATUS.md` — current status and evidence.
-- `docs/COMPATIBILITY.md` — platform compatibility matrix.
+- `KeefeOS/boot-protocol` — versioned BootInfo ABI and bounds-checked ELF64 parser.
+- `KeefeOS/bootloader` — UEFI loader and firmware-rendered boot splash.
+- `KeefeOS/kernel` — x86-64 kernel, memory management, interrupt setup, and experimental modules.
+- `KeefeOS/xtask` — host build, FAT image packaging, and QEMU helper.
+- `docs/COMPATIBILITY.md` — current hardware/platform compatibility matrix.
+- `docs/audit/OS_STATUS.md` — latest tested state and remaining risks.
 - `docs/audit/SECURITY_STATUS.md` and `SECURITY.md` — security limitations and reporting policy.
-- `docs/QWEN_CODER_PROMPT.md` — engineering handoff prompt.
+- `docs/QWEN_CODER_PROMPT.md` — implementation handoff for Qwen Coder.
 
 ## Build and test (Linux / WSL2)
 
@@ -71,18 +78,16 @@ cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unkno
 cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 ```
 
-CI additionally boots the generated image in QEMU/OVMF and requires `KEEFEOS-KERNEL-BOOT-OK` on serial. Do not claim boot success unless that step passes.
+CI runs the full QEMU/OVMF matrix and requires both the firmware splash message and `KEEFEOS-KERNEL-BOOT-OK`. Image generation alone does not establish boot success.
 
-## Compatibility
+## Compatibility and security
 
-The tested configuration is x86-64 QEMU + OVMF UEFI. Physical x86-64 devices, VirtualBox, VMware, Hyper-V, native Windows/macOS hosts, ARM64, RISC-V, phones, and consoles have not been validated as boot targets. See [the compatibility matrix](docs/COMPATIBILITY.md).
+The currently verified matrix is limited to x86-64 QEMU/OVMF at 256 MiB, 512 MiB, and 1 GiB RAM. Physical x86-64 devices, other hypervisors/firmware, ARM64, RISC-V, phones, consoles, and other boards are not supported or verified. See [the compatibility matrix](docs/COMPATIBILITY.md).
 
-## Security posture
-
-KeefeOS is not a security boundary. Secure-boot signatures, trusted randomness, authenticated encryption, a real capability verifier, runtime vulnerability scanning and attack detection remain unimplemented. Their APIs fail closed or report incomplete status rather than pretending to protect the system.
+KeefeOS is not a security boundary. Secure-boot signature verification, trusted randomness, authenticated encryption, real capability verification, runtime vulnerability scanning, and attack detection remain unimplemented. Their APIs fail closed or report incomplete status.
 
 Read [SECURITY.md](SECURITY.md), [the security status](docs/audit/SECURITY_STATUS.md), and [the initial codebase audit](docs/audit/INITIAL_CODEBASE_AUDIT.md).
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md). Prioritize boot correctness, memory safety, regression tests, and evidence-based documentation over speculative feature claims.
+Read [CONTRIBUTING.md](CONTRIBUTING.md). Prioritize boot correctness, memory safety, regression tests, and evidence-backed implementation claims over speculative feature claims.

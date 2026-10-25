@@ -1,56 +1,52 @@
 # KeefeOS current engineering status
 
 **Evidence refresh:** 2026-10-25  
-**Current commit:** `98f1830908c57861910df866a51dfafa138b0d04`  
-**CI run:** [40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209)
+**Current tested commit:** `df97691cdecd26ff3a099b981b542817088683b1`  
+**CI run:** [40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679)
 
 ## Verified in CI
 
 | Check | Result | Evidence |
 |---|---|---|
-| Host `xtask` check | PASS | Run 40201424209 |
-| Boot protocol / ELF parser tests | PASS — 22 tests | Run 40201424209 |
-| Host-side kernel unit tests | PASS — 31 tests | Run 40201424209 |
-| `x86_64-unknown-none` kernel build | PASS | Run 40201424209 |
-| `x86_64-unknown-uefi` loader build | PASS | Run 40201424209 |
-| FAT disk image assembly | PASS | Artifact uploaded by the workflow |
-| UEFI GOP splash | PASS for the tested OVMF configuration | Firmware BLT operations succeeded before ExitBootServices |
-| QEMU + OVMF early kernel boot | PASS for one configuration | Serial log observed `KEEFEOS-KERNEL-BOOT-OK` |
+| Host `xtask` check | PASS | Run 40201976679 |
+| Boot protocol / ELF parser tests | PASS — 22 tests | Run 40201976679 |
+| Host-side kernel unit tests | PASS — 31 tests | Run 40201976679 |
+| `x86_64-unknown-none` kernel build | PASS | Run 40201976679 |
+| `x86_64-unknown-uefi` loader build | PASS | Run 40201976679 |
+| FAT disk image assembly | PASS | Artifact uploaded by workflow |
+| QEMU/OVMF early boot + splash | PASS at 256 MiB, 512 MiB, and 1 GiB | The splash and kernel marker are required in each serial log |
 
-### Observed boot output
+### Observed boot evidence
 
-The CI serial log reported:
+Across the 256 MiB, 512 MiB, and 1 GiB profiles, the serial logs reported the firmware-rendered GOP splash and `KEEFEOS-KERNEL-BOOT-OK`. They also reported:
 
-- GOP candidate at `0x80000000`, size 4,096,000 bytes, mode 1280×800 with stride 1280.
-- `UEFI GOP splash drawn through firmware BLT`.
-- Kernel image range `0x02000000..0x02816000`.
-- The loader exited boot services and passed normalized BootInfo.
-- `GOP range has a gap in the final memory map; unsafe framebuffer writes refused`.
-- `KEEFEOS-KERNEL-BOOT-OK`.
+```text
+GOP range has a gap in the final memory map; unsafe framebuffer writes refused
+```
 
-This verifies a single x86-64 QEMU + OVMF early boot and a firmware-rendered splash. It does not verify a persistent kernel framebuffer console, a production OS, or physical hardware compatibility.
+This verifies three RAM configurations in the same QEMU/OVMF environment. It does not verify physical hardware, another firmware implementation, a production OS, or a persistent kernel framebuffer console.
 
 ## Limitations
 
 | Area | Status |
 |---|---|
-| Load address | Fixed physical 32–64 MiB window; dynamic relocation is not implemented. |
-| Address-space model | Firmware mappings remain active through the smoke test; higher-half/page-table setup and isolation are not verified. |
-| Visual output | UEFI BLT splash works before ExitBootServices. Kernel direct framebuffer output is disabled because the final memory map has a gap over the reported framebuffer range. |
-| Interrupts | CPU exception table exists; complete device IRQ routing and EOI path are not implemented. |
-| Memory | Frame allocator regression tests exist; diverse firmware maps and longer runtime stress remain. |
+| Load address | Fixed physical 32–64 MiB window; relocation is not implemented. |
+| Address-space model | Firmware mappings remain active through the smoke test; full higher-half/page-table setup and isolation are not verified. |
+| Visual output | Firmware GOP splash works before ExitBootServices. Kernel direct framebuffer output is disabled because the final memory map has a gap over GOP memory. |
+| Interrupts | CPU exception table exists; full device IRQ routing and EOI path are not implemented. |
+| Memory | Frame allocator tests exist; diverse firmware maps and stress testing remain limited. |
 | Drivers | No general ACPI/PCI/storage/USB/network/input/power-management stack. |
-| Security | Secure boot, cryptographic primitives, trusted random generation, capability signatures and real scanners are not implemented. Fail-closed API behavior is not equivalent to a secure system. |
-| Architecture | x86-64 only. ARM64 and RISC-V backends are not implemented. |
-| Installer | No end-user installer, upgrade path, recovery environment or production configuration. |
-| Compiler warnings | CI succeeds, but a large warning count remains; warnings need classification and cleanup. |
+| Security | Secure boot, cryptographic primitives, trusted random generation, capability signatures, real vulnerability scanning, and attack detection are not implemented. |
+| Architecture | x86-64 only; ARM64/RISC-V are not implemented. |
+| Installer | No end-user installer, upgrades, recovery environment, or production configuration. |
+| Compiler warnings | CI passes, but a large warning count remains. |
 | Physical hardware | Not tested. |
 
 ## Next engineering priorities
 
-1. Investigate why OVMF's final memory map does not cover the GOP framebuffer range, without weakening the fail-closed check.
-2. Implement a properly validated MMIO mapping contract before enabling persistent kernel framebuffer writes.
-3. Add QEMU memory-size/device-profile test variations.
-4. Reduce real compiler warnings without blanket suppression.
-5. Review unsafe memory, paging and interrupt paths. Implement driver/IRQ routing only after the boot/memory contract is stable.
-6. Continue branch consolidation with explicit unique-commit dispositions.
+1. Investigate why OVMF's final memory map has a gap covering the GOP range. Keep direct writes disabled until a valid MMIO/page-table mapping is established.
+2. Make the kernel load strategy robust across more firmware maps; the 32–64 MiB address window is fixed.
+3. Expand device/firmware test profiles without claiming compatibility beyond the tested configuration.
+4. Classify and fix compiler warnings without blanket suppression.
+5. Audit unsafe memory, paging, interrupts and allocator invariants.
+6. Continue branch consolidation separately; preserve unique work and do not delete unreviewed branches.

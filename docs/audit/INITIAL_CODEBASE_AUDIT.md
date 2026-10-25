@@ -1,59 +1,52 @@
 # KeefeOS audit and remediation status
 
 **Initial audit baseline:** `98a7f75cb8273037615ae0fe29ac70aa94bbce8e`  
-**Current verified boot commit:** `2683ea911db964a68f86c615372fc13171bf3c4e`  
-**Current CI evidence:** [run 40199251364](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40199251364)
+**Current tested commit:** `df97691cdecd26ff3a099b981b542817088683b1`  
+**CI evidence:** [run 40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679)
 
-This document preserves historical findings and distinguishes them from current status. It is not a line-by-line formal audit or a security certification.
+This is an evidence-based engineering status, not a formal verification or security certification.
 
-## Current status
+## Current verified state
 
-CI run 40199251364 passed protocol tests, kernel library tests, target builds, image assembly, and the QEMU/OVMF serial smoke test. The loader logged the kernel range `0x02000000..0x02815000`, exited UEFI boot services, passed BootInfo, and the kernel emitted `KEEFEOS-KERNEL-BOOT-OK`.
+CI run 40201976679 passed 22 boot-protocol tests, 31 kernel tests, host helper check, kernel and UEFI-loader builds, FAT image assembly, and QEMU/OVMF smoke tests at **256 MiB, 512 MiB, and 1 GiB RAM**. Each serial log contained `UEFI GOP splash drawn through firmware BLT` and `KEEFEOS-KERNEL-BOOT-OK`.
 
-The fixed load window was moved from 1–33 MiB to 32–64 MiB because OVMF previously returned `EFI_NOT_FOUND` when asked to reserve the old range. This makes one QEMU configuration boot, but remains a fixed-address design. Relocation is not implemented, and physical hardware compatibility is not established.
+The UEFI splash is rendered by firmware before ExitBootServices. The kernel's direct framebuffer console is still disabled because the final UEFI map has a gap over the GOP buffer at `0x80000000`. The kernel correctly refuses direct writes to a range whose mapping/reservation cannot be proven.
 
 ## Historical baseline findings
 
 ### KOS-001 — CI did not compile the project (FIXED)
-The original workflow only printed a greeting. CI now checks the host helper, BootInfo/ELF parser tests, kernel tests, bare-metal kernel build, UEFI loader build, image packaging, and QEMU/OVMF serial boot marker.
+The original workflow only printed a greeting. CI now tests the host helper, protocol/ELF parser, kernel library, kernel and UEFI targets, image packaging, firmware splash, and serial boot marker.
 
 ### KOS-002 — ELF kernel was treated as a UEFI application (FIXED FOR TESTED PATH)
-The bootloader now parses a constrained ELF64 image, validates PT_LOAD segments and the entry address, copies segments into reserved physical memory, builds BootInfo, exits boot services, and transfers control. This has been tested only for the fixed x86-64 window in QEMU/OVMF.
+The loader parses a constrained ELF64 image, validates PT_LOAD segment ranges and entry point, copies segments into reserved physical memory, builds BootInfo, exits boot services, and transfers control. Verified only in the QEMU/OVMF RAM matrix and fixed load window.
 
 ### KOS-003 — Memory map ABI was inconsistent (PARTIALLY REMEDIATED)
-The shared boot-protocol crate defines a versioned BootInfo and normalizes firmware descriptors using a stable 40-byte record. Parser tests check invalid magic/version, lengths, stride, overflow, overlapping descriptors and kernel reservation. Firmware map variety and allocator stress still require broader testing.
+The shared BootInfo uses a versioned ABI and normalizes firmware descriptors. Tests cover invalid magic/version, lengths, stride, overflow, overlapping descriptors, framebuffer geometry/reservation, and kernel reservation. More firmware layouts and allocator stress remain.
 
-### KOS-004 — Linker/paging higher-half descriptions disagreed (OPEN)
-The current linker places the kernel in an identity-mapped physical range at 32–64 MiB. Higher-half helper code and duplicate experimental paging implementations remain a design debt. The successful smoke test keeps the firmware-provided address space for early boot; it does not verify higher-half setup or isolation.
+### KOS-004 — Higher-half/paging assumptions disagreed (OPEN)
+The linker uses a fixed low identity-mapped range within 32–64 MiB. Higher-half helpers and duplicate experimental paging implementation remain a design debt. The boot test leaves firmware mappings active and does not verify address-space isolation.
 
 ### KOS-005 — Build target/profile selection was implicit (FIXED FOR CURRENT CI)
-The build helper targets the bare-metal kernel and UEFI application explicitly, and the bootloader embeds the kernel artifact for the same profile.
+The build targets are explicit and bootloader embeds the kernel artifact for the chosen profile.
 
-### KOS-006 — QEMU failure did not fail the command (FIXED IN CI)
-The workflow now requires `KEEFEOS-KERNEL-BOOT-OK` in the serial log. The cited run produced the marker and passed. A build/package pass alone is not counted as boot verification.
+### KOS-006 — QEMU failures were not reliable CI failures (FIXED)
+CI now tests three RAM sizes and requires both UEFI splash and kernel boot markers.
 
-### KOS-007 — Security and AI claims exceeded evidence (PARTIALLY REMEDIATED)
-Cryptography and capability APIs now fail closed where real implementations are absent. Read `docs/audit/SECURITY_STATUS.md`. Security, AI/LLM, scanner, and attack-detection placeholders are not production controls.
+### KOS-007 — Security/AI claims exceeded implementation (PARTIALLY REMEDIATED)
+Sensitive placeholder crypto and capability APIs fail closed. Scanner/attack detector/secure-boot APIs remain non-functional placeholders. See `docs/audit/SECURITY_STATUS.md`.
 
-## Remaining critical work
+## Remaining work
 
-1. Replace the fixed load window with a verified relocatable kernel or otherwise validate physical load-range availability robustly.
-2. Define the actual page-table lifecycle and verify memory-map identity mappings; add a safe GOP framebuffer path via BootInfo.
-3. Reconcile or isolate duplicate paging code and add invariants/tests for allocator and physical/virtual mapping.
-4. Reduce compiler warnings; the passing CI run still reported a large warning count during host kernel tests/build.
-5. Add QEMU memory-size and virtual hardware matrix runs.
-6. Add ACPI/PCI and selected drivers only after stable memory/boot contracts exist.
-7. Continue branch consolidation with explicit unique-commit disposition; do not delete branches until reviewed and safely integrated.
+1. Resolve the GOP memory-map gap with a correctly designed and tested physical/MMIO mapping contract; do not bypass validation.
+2. Remove or explicitly constrain the fixed 32–64 MiB load address; ideally add verified relocation support.
+3. Reconcile/contain duplicate paging code and test physical/virtual mappings.
+4. Reduce build warnings without mass suppression.
+5. Expand QEMU/OVMF device/firmware tests while labeling only tested configurations as supported.
+6. Add ACPI, PCI, and selected drivers after boot and memory invariants are stable.
+7. Continue branch inventory/merge/removal with explicit unique-commit dispositions and actual remote verification.
 
-## Supported claims
+## Claims
 
-Verified: one x86-64 QEMU + OVMF UEFI early boot reaches the kernel idle path.
+Verified: x86-64 QEMU + OVMF early boot with 256 MiB, 512 MiB, and 1 GiB RAM; firmware-rendered GOP splash; 22 protocol tests and 31 kernel tests.
 
-Not verified: physical PC installation, alternative firmware, other hypervisors, GUI, scheduler/process model, secure boot, real cryptography, capability isolation, broad device drivers, ARM64, RISC-V, phones, or production security.
-
-
-## Follow-up: readable GOP splash and strict framebuffer fallback (2026-10-25)
-
-Evidence: [GitHub Actions run 40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209), commit `98f1830908c57861910df866a51dfafa138b0d04`. The run passed 22 boot-protocol tests, 31 kernel unit tests, the kernel and UEFI builds, image packaging, and the QEMU/OVMF serial boot test. The bootloader draws a readable `KEEFEOS / SYSTEM BOOT / UEFI / X86_64` splash using the UEFI GOP BLT API before exiting boot services; the serial log confirms firmware BLT accepted the operations.
-
-The kernel's direct framebuffer console remains **disabled**. OVMF reports a 1280×800 GOP buffer at `0x80000000`, but the normalized final memory map has a gap covering that range. The loader records that condition and the kernel refuses direct writes. This is the correct fail-closed behavior until a sound MMIO mapping contract exists. Do not mark the persistent framebuffer console as implemented based only on the pre-boot splash.
+Not verified: physical PC installation, other UEFI firmware, VirtualBox/VMware/Hyper-V, a persistent kernel framebuffer console, full scheduler/process model, secure boot, real cryptography, broad drivers, ARM64, RISC-V, phones, or production security.
