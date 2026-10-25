@@ -283,6 +283,123 @@ fn efi_main() -> Status {
     kernel_entry(boot_info_address)
 }
 
+/// Fill a clipped rectangle using firmware GOP operations (no raw MMIO access).
+fn gop_fill(
+    gop: &mut GraphicsOutput,
+    screen_width: usize,
+    screen_height: usize,
+    x: usize,
+    y: usize,
+    width: usize,
+    height: usize,
+    color: BltPixel,
+) -> bool {
+    if x >= screen_width || y >= screen_height {
+        return true;
+    }
+    let width = width.min(screen_width - x);
+    let height = height.min(screen_height - y);
+    if width == 0 || height == 0 {
+        return true;
+    }
+    gop.blt(BltOp::VideoFill {
+        color,
+        dest: (x, y),
+        dims: (width, height),
+    })
+    .is_ok()
+}
+
+fn draw_gop_text(
+    gop: &mut GraphicsOutput,
+    screen_width: usize,
+    screen_height: usize,
+    text: &str,
+    x: usize,
+    y: usize,
+    scale: usize,
+    color: BltPixel,
+) -> bool {
+    if scale == 0 {
+        return false;
+    }
+    let mut cursor_x = x;
+    for byte in text.bytes() {
+        let columns = gop_glyph(byte);
+        for row in 0usize..7 {
+            let mut column = 0usize;
+            while column < columns.len() {
+                while column < columns.len() && columns[column] & (1u8 << row) == 0 {
+                    column += 1;
+                }
+                if column >= columns.len() {
+                    break;
+                }
+                let run_start = column;
+                while column < columns.len() && columns[column] & (1u8 << row) != 0 {
+                    column += 1;
+                }
+                let left = cursor_x.saturating_add(run_start.saturating_mul(scale));
+                let top = y.saturating_add(row.saturating_mul(scale));
+                let run_width = (column - run_start).saturating_mul(scale);
+                if !gop_fill(gop, screen_width, screen_height, left, top, run_width, scale, color) {
+                    return false;
+                }
+            }
+        }
+        cursor_x = cursor_x.saturating_add(6usize.saturating_mul(scale));
+        if cursor_x >= screen_width {
+            break;
+        }
+    }
+    true
+}
+
+fn gop_glyph(byte: u8) -> [u8; 5] {
+    match byte.to_ascii_uppercase() {
+        b'A' => [0x7E, 0x11, 0x11, 0x11, 0x7E],
+        b'B' => [0x7F, 0x49, 0x49, 0x49, 0x36],
+        b'C' => [0x3E, 0x41, 0x41, 0x41, 0x22],
+        b'D' => [0x7F, 0x41, 0x41, 0x22, 0x1C],
+        b'E' => [0x7F, 0x49, 0x49, 0x49, 0x41],
+        b'F' => [0x7F, 0x09, 0x09, 0x09, 0x01],
+        b'G' => [0x3E, 0x41, 0x49, 0x49, 0x7A],
+        b'H' => [0x7F, 0x08, 0x08, 0x08, 0x7F],
+        b'I' => [0x00, 0x41, 0x7F, 0x41, 0x00],
+        b'J' => [0x20, 0x40, 0x41, 0x3F, 0x01],
+        b'K' => [0x7F, 0x08, 0x14, 0x22, 0x41],
+        b'L' => [0x7F, 0x40, 0x40, 0x40, 0x40],
+        b'M' => [0x7F, 0x02, 0x0C, 0x02, 0x7F],
+        b'N' => [0x7F, 0x04, 0x08, 0x10, 0x7F],
+        b'O' => [0x3E, 0x41, 0x41, 0x41, 0x3E],
+        b'P' => [0x7F, 0x09, 0x09, 0x09, 0x06],
+        b'Q' => [0x3E, 0x41, 0x51, 0x21, 0x5E],
+        b'R' => [0x7F, 0x09, 0x19, 0x29, 0x46],
+        b'S' => [0x46, 0x49, 0x49, 0x49, 0x31],
+        b'T' => [0x01, 0x01, 0x7F, 0x01, 0x01],
+        b'U' => [0x3F, 0x40, 0x40, 0x40, 0x3F],
+        b'V' => [0x1F, 0x20, 0x40, 0x20, 0x1F],
+        b'W' => [0x3F, 0x40, 0x38, 0x40, 0x3F],
+        b'X' => [0x63, 0x14, 0x08, 0x14, 0x63],
+        b'Y' => [0x07, 0x08, 0x70, 0x08, 0x07],
+        b'Z' => [0x61, 0x51, 0x49, 0x45, 0x43],
+        b'0' => [0x3E, 0x51, 0x49, 0x45, 0x3E],
+        b'1' => [0x00, 0x42, 0x7F, 0x40, 0x00],
+        b'2' => [0x62, 0x51, 0x49, 0x49, 0x46],
+        b'3' => [0x22, 0x41, 0x49, 0x49, 0x36],
+        b'4' => [0x18, 0x14, 0x12, 0x7F, 0x10],
+        b'5' => [0x2F, 0x49, 0x49, 0x49, 0x31],
+        b'6' => [0x3E, 0x49, 0x49, 0x49, 0x32],
+        b'7' => [0x01, 0x71, 0x09, 0x05, 0x03],
+        b'8' => [0x36, 0x49, 0x49, 0x49, 0x36],
+        b'9' => [0x26, 0x49, 0x49, 0x49, 0x3E],
+        b'/' => [0x20, 0x10, 0x08, 0x04, 0x02],
+        b'_' => [0x40, 0x40, 0x40, 0x40, 0x40],
+        b' ' => [0; 5],
+        _ => [0x7F, 0x41, 0x5D, 0x41, 0x7F],
+    }
+}
+
 /// Draw a small boot splash through the UEFI GOP BLT API before exiting
 /// boot services. This deliberately uses firmware operations instead of raw
 /// framebuffer pointers, so it remains safe even when the final memory map
@@ -304,28 +421,6 @@ fn render_uefi_splash() -> bool {
     let panel_x = (screen_width - panel_width) / 2;
     let panel_y = (screen_height - panel_height) / 2;
 
-    let fill = |gop: &mut GraphicsOutput,
-                x: usize,
-                y: usize,
-                width: usize,
-                height: usize,
-                color: BltPixel| -> bool {
-        if x >= screen_width || y >= screen_height {
-            return true;
-        }
-        let width = width.min(screen_width - x);
-        let height = height.min(screen_height - y);
-        if width == 0 || height == 0 {
-            return true;
-        }
-        gop.blt(BltOp::VideoFill {
-            color,
-            dest: (x, y),
-            dims: (width, height),
-        })
-        .is_ok()
-    };
-
     let background = BltPixel::new(8, 14, 28);
     let panel = BltPixel::new(17, 28, 47);
     let accent = BltPixel::new(57, 224, 198);
@@ -334,10 +429,10 @@ fn render_uefi_splash() -> bool {
 
     // Abort the splash if any firmware BLT operation fails; do not fall back to
     // direct writes. The OS loader and serial path can continue independently.
-    if !fill(&mut gop, 0, 0, screen_width, screen_height, background)
-        || !fill(&mut gop, 0, 0, screen_width, 5, accent)
-        || !fill(&mut gop, panel_x, panel_y, panel_width, panel_height, panel)
-        || !fill(&mut gop, panel_x, panel_y, panel_width, 4, accent)
+    if !gop_fill(&mut gop, screen_width, screen_height, 0, 0, screen_width, screen_height, background)
+        || !gop_fill(&mut gop, screen_width, screen_height, 0, 0, screen_width, 5, accent)
+        || !gop_fill(&mut gop, screen_width, screen_height, panel_x, panel_y, panel_width, panel_height, panel)
+        || !gop_fill(&mut gop, screen_width, screen_height, panel_x, panel_y, panel_width, 4, accent)
     {
         return false;
     }
@@ -346,7 +441,7 @@ fn render_uefi_splash() -> bool {
     let logo_x = panel_x + 48;
     let logo_y = panel_y + 76;
     let cell = 10;
-    if !fill(&mut gop, logo_x, logo_y, 12, 90, accent) {
+    if !gop_fill(&mut gop, screen_width, screen_height, logo_x, logo_y, 12, 90, accent) {
         return false;
     }
     for row in 0..5usize {
@@ -354,21 +449,20 @@ fn render_uefi_splash() -> bool {
         let upper_y = logo_y + row * cell;
         let lower_x = logo_x + 12 + row * cell;
         let lower_y = logo_y + 42usize.saturating_sub(row * cell);
-        if !fill(&mut gop, upper_x, upper_y, 20, 12, accent)
-            || !fill(&mut gop, lower_x, lower_y, 20, 12, accent)
+        if !gop_fill(&mut gop, screen_width, screen_height, upper_x, upper_y, 20, 12, accent)
+            || !gop_fill(&mut gop, screen_width, screen_height, lower_x, lower_y, 20, 12, accent)
         {
             return false;
         }
     }
 
-    // Abstract title/status bars to give a clean, legible boot splash without
-    // assuming a particular GOP font or pixel format.
+    // Draw readable pixel-font labels instead of placeholder skeleton bars.
     let text_x = logo_x + 108;
     let content_width = panel_width.saturating_sub(180);
-    if !fill(&mut gop, text_x, logo_y + 4, content_width.min(300), 8, pale)
-        || !fill(&mut gop, text_x, logo_y + 28, content_width.min(390), 5, muted)
-        || !fill(&mut gop, text_x, logo_y + 44, content_width.min(330), 5, muted)
-        || !fill(&mut gop, text_x, logo_y + 60, content_width.min(250), 5, muted)
+    if !draw_gop_text(&mut gop, screen_width, screen_height, "KEEFEOS", text_x, logo_y + 2, 3, pale)
+        || !draw_gop_text(&mut gop, screen_width, screen_height, "SYSTEM BOOT", text_x, logo_y + 48, 2, accent)
+        || !draw_gop_text(&mut gop, screen_width, screen_height, "UEFI / X86_64", text_x, logo_y + 82, 1, muted)
+        || !gop_fill(&mut gop, screen_width, screen_height, text_x, logo_y + 36, content_width.min(400), 2, muted)
     {
         return false;
     }
@@ -376,9 +470,9 @@ fn render_uefi_splash() -> bool {
     let rail_x = panel_x + 48;
     let rail_y = panel_y + panel_height - 48;
     let rail_width = panel_width.saturating_sub(96);
-    if !fill(&mut gop, rail_x, rail_y, rail_width, 8, muted)
-        || !fill(&mut gop, rail_x, rail_y, rail_width.saturating_mul(2) / 3, 8, accent)
-        || !fill(&mut gop, rail_x, rail_y + 18, rail_width.min(220), 3, muted)
+    if !gop_fill(&mut gop, screen_width, screen_height, rail_x, rail_y, rail_width, 8, muted)
+        || !gop_fill(&mut gop, screen_width, screen_height, rail_x, rail_y, rail_width.saturating_mul(2) / 3, 8, accent)
+        || !gop_fill(&mut gop, screen_width, screen_height, rail_x, rail_y + 18, rail_width.min(220), 3, muted)
     {
         return false;
     }
