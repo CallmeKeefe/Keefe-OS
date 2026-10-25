@@ -1,34 +1,82 @@
 # KeefeOS
 
-KeefeOS is an experimental Rust operating-system project targeting an x86-64 bare-metal kernel and UEFI boot path. It is an engineering prototype, not a production-ready operating system.
+[![CI](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml/badge.svg?branch=main)](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml)
+
+KeefeOS is an experimental Rust operating-system project targeting an x86-64 bare-metal kernel with a UEFI boot path. It is an engineering prototype, not a production-ready operating system.
+
+## Project status
+
+| Area | Current status |
+|---|---|
+| Rust workspace and kernel source | Present |
+| x86-64 bare-metal target configuration | Present; build must be verified by CI |
+| UEFI bootloader source | Present |
+| Disk-image packaging helper | Present |
+| Automated compile/package workflow | Added; check the latest Actions run for its actual result |
+| Successful firmware-to-kernel boot | **Not verified** |
+| Memory-map ABI and physical/virtual mapping | Known issues remain |
+| User-space processes, IPC, production driver stack | Not claimed as complete |
+| Security certification or independent audit | Not performed |
+
+This status is intentionally conservative: source files, roadmap statements, module names, and startup messages are not proof of working OS features.
 
 ## Repository layout
 
-- `KeefeOS/kernel` — kernel binary/library and memory, architecture, interrupt, AI, and security modules.
-- `KeefeOS/bootloader` — UEFI application.
-- `KeefeOS/xtask` — host-side build, image packaging, and QEMU helper.
-- `KeefeOS/docs` — installation and contributor documentation.
-- `NEXUS_OS_*.md` — architecture proposals and roadmap material.
+- KeefeOS/kernel — kernel binary/library plus architecture, memory, interrupt, AI, and security modules.
+- KeefeOS/bootloader — UEFI application and kernel-image embedding build script.
+- KeefeOS/xtask — host-side build orchestration, FAT image creation, and QEMU launcher.
+- KeefeOS/docs — development setup, installation/testing notes, and contributor guidance.
+- docs/audit — evidence-based audit and branch-review records.
+- docs/QWEN_CODER_PROMPT.md — detailed handoff prompt for Qwen Coder.
+- NEXUS_OS_*.md — architecture proposals and roadmap, not a guarantee that every proposal is implemented.
 
-## Build prerequisites
+## Quick start (Linux or WSL2)
 
-Use the pinned nightly Rust channel with `rust-src` and the `x86_64-unknown-none` and `x86_64-unknown-uefi` targets. QEMU and OVMF are needed to attempt emulation.
+The current helper assumes a Linux host with QEMU and OVMF. Windows developers should use WSL2 for the documented image/QEMU flow.
 
-From the repository root:
+Install Rust nightly with the components and targets used by the workspace:
 
-```sh
+~~~sh
+rustup toolchain install nightly --component rust-src --component llvm-tools --component rustfmt --component clippy --target x86_64-unknown-none --target x86_64-unknown-uefi
+~~~
+
+On Ubuntu/Debian, install the emulator and UEFI firmware packages:
+
+~~~sh
+sudo apt update
+sudo apt install qemu-system-x86 ovmf
+~~~
+
+Build from the workspace directory:
+
+~~~sh
 cd KeefeOS
 cargo +nightly build --locked --package keefeos-kernel --target x86_64-unknown-none
 cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
+cargo +nightly check --locked --package xtask --target x86_64-unknown-linux-gnu
 cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
-```
+~~~
 
-Build kernel and bootloader with the same profile. Use `--release` for both if packaging a release-profile image.
+The kernel and bootloader must use the same Cargo profile. For a release image, add --release to both build commands and to the xtask image command. The bootloader embeds the kernel artifact for the selected profile.
 
-## Important limitations
+To build the image and launch QEMU in one command:
 
-A successful compilation or packaged disk image does not prove that firmware can load the kernel or that the OS boots. The current boot handoff still passes a generic ELF kernel to UEFI `LoadImage` and has an inconsistent memory-map descriptor ABI. Until these are repaired and the image is boot-tested, bootability is **not verified**.
+~~~sh
+cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- run
+~~~
 
-Security, capability, AI/ML, scheduler, encryption, and distributed-system claims must be judged against implementation and tests, not roadmap text or startup banners.
+The run command depends on OVMF firmware being available in one of the Linux paths checked by the helper. The current automation does not yet provide a verified boot result.
 
-See [the initial codebase audit](docs/audit/INITIAL_CODEBASE_AUDIT.md) and [branch consolidation report](docs/audit/BRANCH_CONSOLIDATION_REPORT.md) for the current evidence and remaining work.
+## Important boot limitation
+
+The current bootloader passes an ELF kernel image through UEFI's LoadImage path and uses the loaded image base as if it were the kernel's entry point. A generic x86_64-unknown-none ELF kernel is not a UEFI application image. The kernel also uses a hard-coded UEFI memory-map descriptor layout that does not consistently match the descriptor ABI. These are boot blockers; a successful compile or disk-image build does **not** demonstrate successful boot.
+
+See [the initial codebase audit](docs/audit/INITIAL_CODEBASE_AUDIT.md), [branch consolidation report](docs/audit/BRANCH_CONSOLIDATION_REPORT.md), and [development setup guide](KeefeOS/docs/DEVELOPMENT_SETUP.md).
+
+## Development and contributions
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes. Prioritize reproducible builds, correct boot and memory handling, narrow unsafe boundaries, regression tests, and evidence-backed documentation over speculative features.
+
+## License metadata
+
+The Cargo workspace currently declares MIT OR Apache-2.0, but the canonical license text files are not present in the current repository tree. This mismatch needs to be resolved before publishing or redistributing release artifacts.

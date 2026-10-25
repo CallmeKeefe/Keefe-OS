@@ -1,1 +1,36 @@
+# Rust/Cargo build output (including the nested workspace)
+/target/
+/KeefeOS/target/
 target/
+
+# Generated OS images and binaries
+*.img
+*.iso
+*.elf
+*.efi
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editors and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Python tooling, if used for analysis scripts
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage/
+htmlcov/
