@@ -1,70 +1,52 @@
-# KeefeOS initial codebase audit
+# KeefeOS audit and remediation status
 
-**Snapshot:** 2026-10-25  
-**Reviewed baseline:** `98a7f75cb8273037615ae0fe29ac70aa94bbce8e`  
-**Current build/CI correction commit:** `28d919369ebf8a02c7cdefa02d9f0fd4982b0455`
+**Initial audit baseline:** `98a7f75cb8273037615ae0fe29ac70aa94bbce8e`  
+**Current verified boot commit:** `2683ea911db964a68f86c615372fc13171bf3c4e`  
+**Current CI evidence:** [run 40199251364](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40199251364)
 
-This is an initial static audit of the live source and build configuration. It is not a formal verification, full line-by-line audit, or successful build/boot claim.
+This document preserves historical findings and distinguishes them from current status. It is not a line-by-line formal audit or a security certification.
 
-## Findings
+## Current status
 
-### KOS-001 — CI did not compile the project
-**Severity:** High  
-**Location:** `.github/workflows/blank.yml`  
-The previous workflow only checked out the repo and printed a greeting. It did not compile kernel or bootloader code. Replaced with explicit host xtask, bare-metal kernel, UEFI loader, and image-packaging steps. The new run must finish before the pipeline can be called green.
+CI run 40199251364 passed protocol tests, kernel library tests, target builds, image assembly, and the QEMU/OVMF serial smoke test. The loader logged the kernel range `0x02000000..0x02815000`, exited UEFI boot services, passed BootInfo, and the kernel emitted `KEEFEOS-KERNEL-BOOT-OK`.
 
-### KOS-002 — UEFI loader treats an ELF kernel as a UEFI executable
-**Severity:** Critical boot blocker  
-**Location:** `KeefeOS/bootloader/src/main.rs`  
-The kernel is built for `x86_64-unknown-none`, then its ELF bytes are passed to UEFI `LoadImage`, which expects a UEFI-loadable image. The current code also transmutes the loaded image base to the kernel entry function instead of loading ELF segments and using the ELF entry address. Boot is therefore not verified and should be considered broken until an ELF loader or a compatible boot protocol is implemented.
+The fixed load window was moved from 1–33 MiB to 32–64 MiB because OVMF previously returned `EFI_NOT_FOUND` when asked to reserve the old range. This makes one QEMU configuration boot, but remains a fixed-address design. Relocation is not implemented, and physical hardware compatibility is not established.
 
-The new build script fixes profile-specific artifact embedding only; it does not fix this boot handoff.
+## Historical baseline findings
 
-### KOS-003 — UEFI memory-map descriptor layout is inconsistent
-**Severity:** Critical memory-management risk  
-**Location:** `KeefeOS/kernel/src/main.rs`  
-The kernel assumes every descriptor is 48 bytes but models only 32 bytes, advances using a hard-coded stride, and treats a descriptor field that is a page count as a byte size. The UEFI crate descriptor size may also differ from the hard-coded constant. The handoff needs a versioned structure containing the descriptor size/count and validated fields; page counts must be converted to bytes with checked arithmetic.
+### KOS-001 — CI did not compile the project (FIXED)
+The original workflow only printed a greeting. CI now checks the host helper, BootInfo/ELF parser tests, kernel tests, bare-metal kernel build, UEFI loader build, image packaging, and QEMU/OVMF serial boot marker.
 
-### KOS-004 — Higher-half documentation and linker layout disagree
-**Severity:** High  
-**Location:** `KeefeOS/kernel/src/arch/x86_64/linker.ld`, `KeefeOS/kernel/src/arch/paging.rs`  
-The linker places the image at `0x00100000`, while comments and translation helpers assume a higher-half offset of `0xFFFF800000000000`. These assumptions must be reconciled with the actual page tables and boot protocol before using the helpers for general address translation.
+### KOS-002 — ELF kernel was treated as a UEFI application (FIXED FOR TESTED PATH)
+The bootloader now parses a constrained ELF64 image, validates PT_LOAD segments and the entry address, copies segments into reserved physical memory, builds BootInfo, exits boot services, and transfers control. This has been tested only for the fixed x86-64 window in QEMU/OVMF.
 
-### KOS-005 — Build target and profile were implicit
-**Severity:** High  
-**Location:** `KeefeOS/xtask/src/main.rs`, `KeefeOS/bootloader/src/main.rs`  
-The previous xtask did not explicitly select `x86_64-unknown-uefi` for the bootloader, and the loader embedded only the debug kernel artifact even when building release. The correction explicitly builds the kernel and UEFI targets and embeds the matching profile's artifact through Cargo's build output directory.
+### KOS-003 — Memory map ABI was inconsistent (PARTIALLY REMEDIATED)
+The shared boot-protocol crate defines a versioned BootInfo and normalizes firmware descriptors using a stable 40-byte record. Parser tests check invalid magic/version, lengths, stride, overflow, overlapping descriptors and kernel reservation. Firmware map variety and allocator stress still require broader testing.
 
-### KOS-006 — QEMU failures did not fail the command
-**Severity:** Medium  
-**Location:** `KeefeOS/xtask/src/main.rs`  
-QEMU failures were printed but not propagated as a non-zero exit. The correction now checks OVMF availability and propagates launch/exit failures.
+### KOS-004 — Linker/paging higher-half descriptions disagreed (OPEN)
+The current linker places the kernel in an identity-mapped physical range at 32–64 MiB. Higher-half helper code and duplicate experimental paging implementations remain a design debt. The successful smoke test keeps the firmware-provided address space for early boot; it does not verify higher-half setup or isolation.
 
-### KOS-007 — Feature and security claims exceed demonstrated evidence
-**Severity:** High documentation/security risk  
-**Location:** Kernel startup messages and NEXUS/security documentation  
-The source contains AI, LLM, encryption, blockchain-named, vulnerability-scanner, and attack-detector modules, but names and initialization logs do not prove production-grade security, secure boot, user/kernel isolation, operational cryptography, or a working AI service. Treat such features as unverified until supported by tests and an implemented threat model.
+### KOS-005 — Build target/profile selection was implicit (FIXED FOR CURRENT CI)
+The build helper targets the bare-metal kernel and UEFI application explicitly, and the bootloader embeds the kernel artifact for the same profile.
 
-## Review scope
+### KOS-006 — QEMU failure did not fail the command (FIXED IN CI)
+The workflow now requires `KEEFEOS-KERNEL-BOOT-OK` in the serial log. The cited run produced the marker and passed. A build/package pass alone is not counted as boot verification.
 
-The live recursive tree contained 63 entries, including directories. The initial pass inspected the workspace manifests, toolchain and Cargo target configuration, CI workflow, bootloader entry/loader path, xtask build/image/QEMU path, kernel entry and memory-map parsing, linker script, paging helpers, frame allocator, GDT/IDT/exception handling, security subsystem entry point, and unique branch-only scheduler/context-switch and security-documentation changes.
+### KOS-007 — Security and AI claims exceeded evidence (PARTIALLY REMEDIATED)
+Cryptography and capability APIs now fail closed where real implementations are absent. Read `docs/audit/SECURITY_STATUS.md`. Security, AI/LLM, scanner, and attack-detection placeholders are not production controls.
 
-This is a focused initial audit, not a claim that every line of all 63 entries or all historical branch trees has been reviewed.
+## Remaining critical work
 
-## Deployment and release status
+1. Replace the fixed load window with a verified relocatable kernel or otherwise validate physical load-range availability robustly.
+2. Define the actual page-table lifecycle and verify memory-map identity mappings; add a safe GOP framebuffer path via BootInfo.
+3. Reconcile or isolate duplicate paging code and add invariants/tests for allocator and physical/virtual mapping.
+4. Reduce compiler warnings; the passing CI run still reported a large warning count during host kernel tests/build.
+5. Add QEMU memory-size and virtual hardware matrix runs.
+6. Add ACPI/PCI and selected drivers only after stable memory/boot contracts exist.
+7. Continue branch consolidation with explicit unique-commit disposition; do not delete branches until reviewed and safely integrated.
 
-Repository metadata indicated GitHub Pages disabled, no homepage, and no published GitHub releases in the releases listing at audit time. The integration did not provide a reliable read of deployment records or external provider dashboards. No production deployment is claimed.
+## Supported claims
 
-## Next engineering steps
+Verified: one x86-64 QEMU + OVMF UEFI early boot reaches the kernel idle path.
 
-1. Implement a real ELF program-header loader or choose a boot protocol compatible with the produced kernel image.
-2. Define and test a versioned memory-map handoff; stop hard-coding descriptor sizes.
-3. Reconcile linker placement, page-table setup, and higher-half translations.
-4. Add host-testable tests for memory-map parsing, allocator bounds, and address/flag calculations.
-5. Review unsafe Rust and test the real boot path under QEMU/OVMF.
-6. Revisit scheduler and task switching only after a safe, testable context-switch design exists.
-
-
-## Follow-up from QEMU run 40194918082
-
-CI evidence: the boot protocol/ELF parser tests, kernel unit tests, kernel ELF build, UEFI loader build, and FAT image packaging passed. The QEMU/OVMF step failed before exiting boot services because `AllocateType::Address(load_start)` returned `EFI_NOT_FOUND` for the ELF's fixed 1 MiB-based load range. A follow-up changes the static linker/parser window to 32–64 MiB to avoid the low-memory/firmware-reserved region seen in this run. This is an x86-64 QEMU bring-up step, not a universal address-allocation guarantee; if the next run still fails, the correct next solution is a relocatable kernel plus verified relocation handling, not a false green boot check.
+Not verified: physical PC installation, alternative firmware, other hypervisors, GUI, scheduler/process model, secure boot, real cryptography, capability isolation, broad device drivers, ARM64, RISC-V, phones, or production security.

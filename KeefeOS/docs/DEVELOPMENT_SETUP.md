@@ -1,71 +1,50 @@
 # KeefeOS development setup
 
-This guide covers compiling the experimental kernel and creating a test disk image. It does not describe a supported end-user installation: bootability is not verified yet.
+This guide covers source builds, tests, and a disposable QEMU image. It does not describe an end-user installation.
 
-## Supported development path
+## Verified test path
 
-The current CI and QEMU helper are Linux-oriented. On Windows, use WSL2 with an Ubuntu distribution for the documented build/image flow. macOS and native Windows builds have not been validated as part of this setup.
+One x86-64 QEMU + OVMF UEFI boot passed in [Actions run 40199251364](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40199251364) at commit `2683ea911db964a68f86c615372fc13171bf3c4e`. The serial output showed BootInfo validation and `KEEFEOS-KERNEL-BOOT-OK`.
 
-### 1. Install prerequisites
+This is a single emulator configuration. Physical machines, other UEFI implementations, native Windows/macOS hosts, ARM64, RISC-V, phones, and other hypervisors are not verified. The loader currently uses a fixed 32–64 MiB x86-64 kernel load window rather than a relocatable image.
 
-Install Rust nightly and the components/targets referenced by the repository's rust-toolchain.toml:
+## Prerequisites
 
-~~~sh
+Use Linux or WSL2 with Ubuntu for the documented image/QEMU path. Install Rust nightly and required targets:
+
+```sh
 rustup toolchain install nightly --component rust-src --component llvm-tools --component rustfmt --component clippy --target x86_64-unknown-none --target x86_64-unknown-uefi
-~~~
+sudo apt-get update
+sudo apt-get install -y qemu-system-x86 ovmf
+```
 
-For Ubuntu/Debian, install QEMU and OVMF:
+## Build and tests
 
-~~~sh
-sudo apt update
-sudo apt install qemu-system-x86 ovmf
-~~~
+Run from the repository root:
 
-Check that commands are available:
-
-~~~sh
-rustc +nightly --version
-cargo +nightly --version
-qemu-system-x86_64 --version
-~~~
-
-The QEMU check is needed only to attempt emulation; the compile and image steps can be run without launching a VM.
-
-### 2. Build in the correct order
-
-From the repository root:
-
-~~~sh
+```sh
 cd KeefeOS
 cargo +nightly fmt --all -- --check
+cargo +nightly test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
+cargo +nightly test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
 cargo +nightly check --locked --package xtask --target x86_64-unknown-linux-gnu
 cargo +nightly build --locked --package keefeos-kernel --target x86_64-unknown-none
 cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
 cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
-~~~
+```
 
-Build the kernel first because the bootloader build script embeds the kernel artifact. Use the same profile for both packages. For release builds, add --release to each of the kernel, bootloader, and image commands.
+Build the kernel before the loader because the loader embeds the kernel artifact. Keep profiles aligned; pass `--release` to each relevant build and image command for release artifacts.
 
-The generated image is normally at KeefeOS/target/keefeos.img. Do not commit generated images or build directories.
+## QEMU/OVMF smoke test
 
-### 3. Attempt QEMU
-
-After installing QEMU and OVMF, run:
-
-~~~sh
-cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- run
-~~~
-
-The helper checks common Linux OVMF paths. If the firmware files are installed elsewhere, configure the helper rather than assuming a missing file is a kernel failure.
-
-**Important:** a QEMU process starting is not proof of a successful boot. Record serial output and the exact last confirmed milestone. Stop and report errors rather than describing a hung VM as successful.
+The GitHub Actions workflow is the authoritative tested path. It discovers OVMF firmware, assembles the FAT image, launches QEMU, captures serial output, and fails unless `KEEFEOS-KERNEL-BOOT-OK` is present. The run uses a disposable copy of the OVMF variable-store image.
 
 ## Known limitations
 
-- The bootloader currently treats an embedded ELF kernel as if it were a UEFI-loadable image and derives the kernel entry address incorrectly. This must be fixed before the current boot path can be considered functional.
-- The kernel's memory-map parser hard-codes a descriptor size and mismatches parts of the UEFI descriptor layout. Correct the ABI and test it before trusting memory statistics or frame allocation.
-- The higher-half address helpers and current linker load address do not yet demonstrate a coherent virtual-memory layout.
-- The workflow builds and packages an image; it does not currently prove that the image boots in QEMU.
-- Architecture proposals and module names are not proof that process isolation, a full scheduler, a driver stack, secure boot, encryption services, or AI agents are production-ready.
+- The kernel load address is fixed, not dynamically relocatable.
+- The page-table/higher-half work is still experimental; the current smoke test uses the firmware-provided address space through early boot.
+- GOP framebuffer output and device drivers are not implemented; current diagnostic output is serial.
+- Build warnings remain and require cleanup.
+- Security, AI, scanner, and attack-detection modules are experimental placeholders; do not rely on them as protections.
 
-Track evidence and remediation in docs/audit/INITIAL_CODEBASE_AUDIT.md.
+Do not install this prototype on physical hardware or test it against drives containing valuable data.
