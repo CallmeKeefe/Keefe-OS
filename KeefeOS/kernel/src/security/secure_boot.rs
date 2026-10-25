@@ -1,239 +1,176 @@
-//! Secure Boot and Measured Boot Process for KeefeOS
+//! Secure-boot status interface.
 //!
-//! Implements secure boot verification chain:
-//! 1. Verify bootloader signature
-//! 2. Verify kernel signature
-//! 3. Measure and record all components in TPM-like log
-//! 4. Verify integrity before execution
+//! This module does not implement signature verification, TPM measurements,
+//! or an authenticated trust chain. It deliberately reports NOT IMPLEMENTED
+//! rather than returning success for arbitrary signatures.
 
 #![no_std]
 
 extern crate alloc;
 
-use core::sync::atomic::{AtomicBool, Ordering;
+use alloc::string::String;
+use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 static SECURE_BOOT_INITIALIZED: AtomicBool = AtomicBool::new(false);
-static mut SECURE_BOOT_ENABLED: bool = false;
+static SECURE_BOOT_ENABLED: AtomicBool = AtomicBool::new(false);
+static TIMESTAMP: AtomicU64 = AtomicU64::new(0);
 
-/// Secure boot status
+/// Status of the secure-boot interface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecureBootStatus {
+    /// No secure-boot initializer has run, or enforcement is disabled.
     Disabled,
+    /// Enforcement was requested but has not been validated.
     Enabled,
+    /// Reserved status; this prototype does not currently produce it.
     Verified,
+    /// A verification attempt failed.
     Failed,
+    /// Signature verification and TPM measurements are not implemented.
+    NotImplemented,
+}
 
-
-/// Boot component measurement
+/// A requested component measurement.
 #[derive(Debug, Clone)]
 pub struct BootMeasurement {
-    pub component_name: &'static str,
+    /// Name supplied by the caller.
+    pub component_name: String,
+    /// Non-cryptographic checksum; not suitable for trust decisions.
     pub hash: [u8; 32],
+    /// Always false until a real signature verifier is integrated.
     pub signature_valid: bool,
+    /// Monotonic counter, not wall-clock time.
     pub timestamp: u64,
+}
 
-
-/// Initialize secure boot subsystem
+/// Initialize the status interface without claiming secure boot is active.
 pub fn init() -> Result<(), &'static str> {
-    log::info!("Initializing Secure Boot...");
-    
-    // In production, this would:
-    // 1. Verify bootloader signature against trusted keys
-    // 2. Verify kernel image signature
-    // 3. Measure all components into PCR registers (TPM)
-    // 4. Create measured boot log
-    
-    
-        // For development, enable but don't enforce
-        SECURE_BOOT_ENABLED = true;
-        SECURE_BOOT_INITIALIZED.store(true, Ordering::Release);
-
-    
-    log::info!("Secure Boot initialized (Development Mode)");
-    log::info!("  - Signature Verification: Enabled (Demo Keys)");
-    log::info!("  - Measured Boot: Active");
-    log::info!("  - TPM Simulation: Enabled");
-    
+    SECURE_BOOT_INITIALIZED.store(true, Ordering::Release);
+    SECURE_BOOT_ENABLED.store(false, Ordering::Release);
+    log::warn!("Secure boot is NOT IMPLEMENTED: no signature verifier or TPM measurement chain");
     Ok(())
+}
 
-
-/// Check if secure boot is initialized
+/// Return whether this status interface was initialized.
 pub fn is_initialized() -> bool {
     SECURE_BOOT_INITIALIZED.load(Ordering::Acquire)
+}
 
-
-/// Check if secure boot is enabled
+/// Return whether enforcement was requested by the caller.
 pub fn is_enabled() -> bool {
-    SECURE_BOOT_ENABLED
+    SECURE_BOOT_ENABLED.load(Ordering::Acquire)
+}
 
-
-/// Get current secure boot status
+/// Return a conservative status; this module never claims verification succeeded.
 pub fn get_status() -> SecureBootStatus {
     if !is_initialized() {
-        return SecureBootStatus::Disabled;
+        SecureBootStatus::Disabled
+    } else if is_enabled() {
+        SecureBootStatus::NotImplemented
+    } else {
+        SecureBootStatus::NotImplemented
+    }
+}
 
-    
-    if !is_enabled() {
-        return SecureBootStatus::Disabled;
+/// Verify a signature using a future trusted-key implementation.
+///
+/// Returns false because no verifier or trust store exists. The boolean must
+/// not be interpreted as a signature failure against a known key.
+pub fn verify_component(_name: &str, _data: &[u8], _signature: &[u8]) -> bool {
+    log::warn!("Component signature verification requested but not implemented");
+    false
+}
 
-    
-    // In production, verify actual signatures
-    SecureBootStatus::Verified
-
-
-/// Verify a boot component's signature
-pub fn verify_component(name: &str, _data: &[u8], _signature: &[u8]) -> bool {
-    if !is_initialized() || !is_enabled() {
-        return true; // Skip verification if not enabled
-
-    
-    log::debug!("Verifying component: {", name);
-    
-    // In production:
-    // 1. Hash the component data
-    // 2. Verify signature using trusted public key
-    // 3. Return true only if signature is valid
-    
-    // For development, accept all components
-    log::warn!("Development mode: Skipping signature verification for {", name);
-    true
-
-
-/// Measure a boot component (record hash in measurement log)
+/// Produce a checksum record for diagnostics only.
 pub fn measure_component(name: &str, data: &[u8]) -> BootMeasurement {
-    let hash = hash_component(data);
-    let timestamp = get_timestamp();
-    
-    log::info!("Measured boot component: { (hash: {:02x?...)", name, &hash[..4]);
-    
     BootMeasurement {
-        component_name: name,
-        hash,
-        signature_valid: true, // Would be set by verify_component in production
-        timestamp,
+        component_name: String::from(name),
+        hash: hash_component(data),
+        signature_valid: false,
+        timestamp: get_timestamp(),
+    }
+}
 
-
-
-/// Hash a component (simplified - use SHA-256 in production)
-fn hash_component(data: &[u8]) -> [u8; 32] {
-    let mut hash = [0u8; 32];
-    
-    // Simple hash for demonstration
-    for (i, &byte) in data.iter().enumerate() {
-        hash[i % 32] ^= byte;
-        hash[(i + 1) % 32] ^= byte.wrapping_add(0x9e3779b9) as u8;
-
-    
-    for i in 0..32 {
-        hash[i] = hash[i].rotate_left((i % 8) as u32);
-
-    
-    hash
-
-
-/// Perform full secure boot verification
-pub fn perform_secure_boot_verification(bootloader_hash: &[u8], kernel_hash: &[u8]) -> SecureBootStatus {
-    if !is_enabled() {
-        return SecureBootStatus::Disabled;
-
-    
-    log::info!("Performing Secure Boot verification...");
-    
-    // Measure bootloader
-    let _bootloader_measurement = measure_component("bootloader", bootloader_hash);
-    
-    // Measure kernel
-    let _kernel_measurement = measure_component("kernel", kernel_hash);
-    
-    // In production, verify each measurement against expected values
-    // and check signature validity
-    
-    SecureBootStatus::Verified
-
-
-/// Get measurement log (for attestation)
+/// Return an empty measurement log until real measurements are implemented.
 pub fn get_measurement_log() -> &'static [BootMeasurement] {
-    static MEASUREMENTS: [BootMeasurement; 4] = [
-        BootMeasurement {
-            component_name: "UEFI Firmware",
-            hash: [0x1a; 32],
-            signature_valid: true,
-            timestamp: 0,
-,
-        BootMeasurement {
-            component_name: "Bootloader",
-            hash: [0x2b; 32],
-            signature_valid: true,
-            timestamp: 1,
-,
-        BootMeasurement {
-            component_name: "Kernel",
-            hash: [0x3c; 32],
-            signature_valid: true,
-            timestamp: 2,
-,
-        BootMeasurement {
-            component_name: "Init Ramdisk",
-            hash: [0x4d; 32],
-            signature_valid: true,
-            timestamp: 3,
-,
-    ];
-    
-    &MEASUREMENTS
+    &[]
+}
 
+/// Return a status result without asserting that either input was verified.
+pub fn perform_secure_boot_verification(
+    _bootloader_hash: &[u8],
+    _kernel_hash: &[u8],
+) -> SecureBootStatus {
+    SecureBootStatus::NotImplemented
+}
 
-/// Generate attestation report
+/// Conservative diagnostic report; it never asserts integrity is established.
 pub fn generate_attestation_report() -> AttestationReport {
-    let measurements = get_measurement_log();
-    let status = get_status();
-    
     AttestationReport {
-        secure_boot_status: status,
-        total_measurements: measurements.len(),
-        all_signatures_valid: measurements.iter().all(|m| m.signature_valid),
-        boot_integrity: status == SecureBootStatus::Verified,
+        secure_boot_status: get_status(),
+        total_measurements: 0,
+        all_signatures_valid: false,
+        boot_integrity: false,
+    }
+}
 
-
-
-/// Attestation report for remote verification
+/// Diagnostic report returned by the secure-boot interface.
 #[derive(Debug, Clone)]
 pub struct AttestationReport {
+    /// Current interface status.
     pub secure_boot_status: SecureBootStatus,
+    /// Number of actual measured components in the log.
     pub total_measurements: usize,
+    /// Whether all signatures were independently verified.
     pub all_signatures_valid: bool,
+    /// Whether the full boot trust chain was verified.
     pub boot_integrity: bool,
-
+}
 
 impl core::fmt::Display for AttestationReport {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        writeln!(f, "=== Secure Boot Attestation Report ===")?;
-        writeln!(f, "Status: {:?", self.secure_boot_status)?;
-        writeln!(f, "Total Measurements: {", self.total_measurements)?;
-        writeln!(f, "All Signatures Valid: {", self.all_signatures_valid)?;
-        writeln!(f, "Boot Integrity: {", self.boot_integrity)?;
+        writeln!(f, "Secure Boot Status Report (prototype)")?;
+        writeln!(f, "Status: {:?}", self.secure_boot_status)?;
+        writeln!(f, "Measured components: {}", self.total_measurements)?;
+        writeln!(f, "All signatures verified: {}", self.all_signatures_valid)?;
+        writeln!(f, "Boot integrity established: {}", self.boot_integrity)?;
         Ok(())
+    }
+}
 
-
-
-/// Get current timestamp
-fn get_timestamp() -> u64 {
-    static TIMESTAMP: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(0);
-    TIMESTAMP.fetch_add(1, core::sync::atomic::Ordering::Relaxed)
-
-
-/// Enable secure boot enforcement (production only)
+/// Request enforcement. This does not activate a verifier.
 pub fn enable_enforcement() {
-    
-        SECURE_BOOT_ENABLED = true;
+    SECURE_BOOT_ENABLED.store(true, Ordering::Release);
+    log::warn!("Secure boot enforcement requested; no verifier is implemented");
+}
 
-    log::info!("Secure Boot enforcement ENABLED");
-
-
-/// Disable secure boot (development only - never in production!)
+/// Disable the enforcement flag for development.
 pub fn disable_enforcement() {
-    
-        SECURE_BOOT_ENABLED = false;
+    SECURE_BOOT_ENABLED.store(false, Ordering::Release);
+    log::warn!("Secure boot enforcement disabled");
+}
 
-    log::warn!("Secure Boot enforcement DISABLED (Development Mode)");
+fn hash_component(data: &[u8]) -> [u8; 32] {
+    // Non-cryptographic diagnostic checksum only. Do not use for signatures.
+    let mut lanes = [
+        0xcbf29ce484222325u64,
+        0x84222325cbf29ce4u64,
+        0x9e3779b97f4a7c15u64,
+        0xd6e8feb86659fd93u64,
+    ];
+    for (index, byte) in data.iter().enumerate() {
+        let lane = index & 3;
+        lanes[lane] ^= *byte as u64;
+        lanes[lane] = lanes[lane].wrapping_mul(0x100000001b3);
+        lanes[lane] ^= lanes[lane] >> 29;
+    }
+    let mut out = [0u8; 32];
+    for (index, lane) in lanes.iter().enumerate() {
+        out[index * 8..index * 8 + 8].copy_from_slice(&lane.to_le_bytes());
+    }
+    out
+}
 
+fn get_timestamp() -> u64 {
+    TIMESTAMP.fetch_add(1, Ordering::Relaxed)
+}
