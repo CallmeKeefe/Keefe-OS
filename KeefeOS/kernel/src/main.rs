@@ -23,7 +23,7 @@ use alloc::vec::Vec;
 
 use core::panic::PanicInfo;
 
-use keefeos_kernel::{console, interrupts, memory};
+use keefeos_kernel::{console, interrupts, memory, println};
 mod heap;
 
 /// Kernel entry point called by the bootloader
@@ -38,7 +38,7 @@ mod heap;
 /// # Safety
 ///
 /// This function is called directly from assembly/UEFI and must not return.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn kernel_start(
     memory_map_ptr: usize,
     memory_map_size: usize,
