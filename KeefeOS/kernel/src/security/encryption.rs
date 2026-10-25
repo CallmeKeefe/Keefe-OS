@@ -135,7 +135,7 @@ pub fn decrypt(data: &[u8], key: &EncryptionKey) -> Result<Vec<u8>, &'static str
     Ok(result)
 }
 
-/// Hash data using SHA-256 (simplified implementation)
+/// Non-cryptographic placeholder digest (NOT SHA-256; never use for security)
 pub fn hash_sha256(data: &[u8]) -> [u8; 32] {
     // In production, implement proper SHA-256
     // For demonstration, use simple hash
@@ -143,7 +143,7 @@ pub fn hash_sha256(data: &[u8]) -> [u8; 32] {
     
     for (i, &byte) in data.iter().enumerate() {
         hash[i % 32] ^= byte;
-        hash[(i + 1) % 32] ^= (byte.wrapping_add(0x9e3779b9) as u8);
+        hash[(i + 1) % 32] ^= (byte.wrapping_add(0x9e3779b9u32 as u8) as u8);
     }
     
     // Mix bits
