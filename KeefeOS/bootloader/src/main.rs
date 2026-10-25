@@ -9,11 +9,15 @@
 use core::convert::TryFrom;
 use core::mem::size_of;
 use core::ptr;
-use keefeos_boot_protocol::bootinfo::{BootInfo, MemoryDescriptor, MAX_MEMORY_DESCRIPTORS};
+use keefeos_boot_protocol::bootinfo::{
+    BootInfo, MemoryDescriptor, MAX_MEMORY_DESCRIPTORS,
+    FRAMEBUFFER_FORMAT_BGR, FRAMEBUFFER_FORMAT_RGB,
+};
 use keefeos_boot_protocol::elf::ElfImage;
 use uefi::boot::{self, AllocateType, MemoryType};
 use uefi::mem::memory_map::MemoryMap;
 use uefi::prelude::*;
+use uefi::proto::console::gop::{GraphicsOutput, PixelFormat};
 
 static KERNEL_BINARY: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/keefeos-kernel"));
@@ -31,6 +35,15 @@ fn efi_main() -> Status {
     log::info!("        KeefeOS UEFI loader");
     log::info!("========================================");
     log::info!("Embedded kernel artifact: {} bytes", KERNEL_BINARY.len());
+    let gop_info = discover_framebuffer();
+    if let Some(info) = gop_info {
+        log::info!(
+            "GOP candidate: {:#x}, {} bytes, {}x{}, stride {}",
+            info.base, info.size, info.width, info.height, info.stride
+        );
+    } else {
+        log::info!("No directly writable RGB/BGR GOP framebuffer; serial-only boot");
+    }
 
     let image = match ElfImage::parse(KERNEL_BINARY) {
         Ok(image) => image,
@@ -191,6 +204,33 @@ fn efi_main() -> Status {
         };
     }
 
+    // Advertise GOP only when the final memory map confirms that the entire
+    // framebuffer range is reserved/non-conventional. Otherwise stay serial-only.
+    if let Some(info) = gop_info {
+        if let Some(framebuffer_end) = info.base.checked_add(info.size) {
+            let covered_by_reserved_range = boot_info.memory_map
+                [..boot_info.memory_map_count as usize]
+                .iter()
+                .any(|descriptor| {
+                    if descriptor.ty == 7 {
+                        return false;
+                    }
+                    match BootInfo::descriptor_end(descriptor) {
+                        Some(end) => descriptor.phys_start <= info.base && framebuffer_end <= end,
+                        None => false,
+                    }
+                });
+            if covered_by_reserved_range {
+                boot_info.fb_addr = info.base;
+                boot_info.fb_size = info.size;
+                boot_info.fb_pixel_format = info.pixel_format;
+                boot_info.fb_horiz_res = info.width;
+                boot_info.fb_vert_res = info.height;
+                boot_info.fb_pixels_per_scan_line = info.stride;
+            }
+        }
+    }
+
     if boot_info.validate(size_of::<BootInfo>()).is_err()
         || boot_info.semantic_check().is_err()
     {
@@ -214,6 +254,62 @@ fn efi_main() -> Status {
     let kernel_entry: extern "sysv64" fn(u64) -> ! =
         unsafe { core::mem::transmute(entry_address) };
     kernel_entry(boot_info_address)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct GopInfo {
+    base: u64,
+    size: u64,
+    pixel_format: u32,
+    width: u32,
+    height: u32,
+    stride: u32,
+}
+
+/// Query the first UEFI GOP, accepting only packed 32-bit RGB/BGR formats.
+///
+/// The caller must still verify that the final post-ExitBootServices memory map
+/// marks the full range as reserved before publishing this information to the kernel.
+fn discover_framebuffer() -> Option<GopInfo> {
+    let handle = boot::get_handle_for_protocol::<GraphicsOutput>().ok()?;
+    let mut gop = boot::open_protocol_exclusive::<GraphicsOutput>(handle).ok()?;
+    let mode = gop.current_mode_info();
+    let pixel_format = match mode.pixel_format() {
+        PixelFormat::Rgb => FRAMEBUFFER_FORMAT_RGB,
+        PixelFormat::Bgr => FRAMEBUFFER_FORMAT_BGR,
+        PixelFormat::Bitmask | PixelFormat::BltOnly => return None,
+    };
+
+    let (width, height) = mode.resolution();
+    let stride = mode.stride();
+    let width = u32::try_from(width).ok()?;
+    let height = u32::try_from(height).ok()?;
+    let stride = u32::try_from(stride).ok()?;
+    if width == 0 || height == 0 || stride < width {
+        return None;
+    }
+
+    // GOP's FrameBuffer is backed by the firmware's reported framebuffer base.
+    // We retain only numeric metadata, never the protocol borrow or framebuffer
+    // object, across ExitBootServices.
+    let mut framebuffer = gop.frame_buffer();
+    let base = framebuffer.as_mut_ptr() as u64;
+    let size = framebuffer.size() as u64;
+    let required_bytes = u64::from(stride)
+        .checked_mul(u64::from(height))?
+        .checked_mul(4)?;
+    if base == 0 || size < required_bytes || base.checked_add(size).is_none() {
+        return None;
+    }
+
+    Some(GopInfo {
+        base,
+        size,
+        pixel_format,
+        width,
+        height,
+        stride,
+    })
 }
 
 fn memory_type_code(ty: MemoryType) -> u32 {

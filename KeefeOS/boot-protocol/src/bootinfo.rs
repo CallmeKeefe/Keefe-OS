@@ -28,9 +28,9 @@
 //! establish a boot milestone; compilation alone does not establish bootability.
 
 /// Magic value ("KIB\x01") identifying a valid boot info block.
-pub const BOOT_INFO_MAGIC: u32 = 0x_4B49_4201;
+pub const BOOT_INFO_MAGIC: u32 = 0x_4B49_4202;
 /// Version of this handoff ABI.
-pub const BOOT_INFO_VERSION: u32 = 1;
+pub const BOOT_INFO_VERSION: u32 = 2;
 
 /// Size of one normalized memory descriptor in bytes (40 for ABI v1).
 pub const MEMORY_DESCRIPTOR_SIZE: usize = core::mem::size_of::<MemoryDescriptor>();
@@ -40,6 +40,10 @@ pub const MAX_MEMORY_DESCRIPTORS: usize = 512;
 
 /// Page size used throughout the handoff (UEFI pages are 4 KiB).
 pub const PAGE_SIZE: u64 = 4096;
+/// RGB framebuffer byte order: R, G, B, reserved.
+pub const FRAMEBUFFER_FORMAT_RGB: u32 = 0;
+/// BGR framebuffer byte order: B, G, R, reserved.
+pub const FRAMEBUFFER_FORMAT_BGR: u32 = 1;
 
 /// One normalized UEFI memory descriptor (mirrors the UEFI 2.x
 /// `EFI_MEMORY_DESCRIPTOR` layout: type, pad, phys, virt, pages, attr).
@@ -60,7 +64,7 @@ pub struct MemoryDescriptor {
     pub att: u64,
 }
 
-/// KeefeOS Boot Info Block v1.
+/// KeefeOS Boot Info Block v2.
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct BootInfo {
@@ -92,7 +96,9 @@ pub struct BootInfo {
     pub memory_region_size: u64,
     /// Linear framebuffer address (0 if unavailable).
     pub fb_addr: u64,
-    /// Framebuffer pixel format identifier (0 if unavailable).
+    /// Framebuffer accessible byte size (0 if unavailable).
+    pub fb_size: u64,
+    /// Framebuffer pixel format identifier (RGB=0, BGR=1; ignored if unavailable).
     pub fb_pixel_format: u32,
     /// Framebuffer horizontal resolution.
     pub fb_horiz_res: u32,
@@ -131,6 +137,8 @@ pub enum BootInfoError {
     OverlappingDescriptors,
     /// The kernel range is not covered by a non-usable descriptor.
     KernelRangeNotReserved,
+    /// Framebuffer geometry, format, size, or memory-map coverage is invalid.
+    InvalidFramebuffer,
 }
 
 impl BootInfo {
@@ -152,6 +160,7 @@ impl BootInfo {
             memory_region_base: 0,
             memory_region_size: 0,
             fb_addr: 0,
+            fb_size: 0,
             fb_pixel_format: 0,
             fb_horiz_res: 0,
             fb_vert_res: 0,
@@ -182,9 +191,9 @@ impl BootInfo {
         if self.header_size as usize != header {
             return Err(BootInfoError::BadTotalSize);
         }
-        // The firmware may legitimately report a descriptor larger than our
-        // normalized 48-byte layout (future UEFI versions append fields);
-        // we copy the prefix. It must never be smaller or zero.
+        // The firmware may report a descriptor larger than the normalized
+        // 40-byte record (future UEFI versions may append fields). The loader
+        // records that original size, but copies only the stable fields.
         if self.firmware_desc_size < MEMORY_DESCRIPTOR_SIZE as u32
             || self.firmware_desc_size > 4096
         {
@@ -193,6 +202,38 @@ impl BootInfo {
         if self.memory_map_count as usize > MAX_MEMORY_DESCRIPTORS {
             return Err(BootInfoError::TooManyEntries);
         }
+
+        // Zero address means the loader could not safely expose a direct GOP
+        // framebuffer. Reject partial metadata to avoid accidental MMIO writes.
+        if self.fb_addr == 0 {
+            if self.fb_size != 0
+                || self.fb_pixel_format != 0
+                || self.fb_horiz_res != 0
+                || self.fb_vert_res != 0
+                || self.fb_pixels_per_scan_line != 0
+            {
+                return Err(BootInfoError::InvalidFramebuffer);
+            }
+        } else {
+            if self.fb_size == 0
+                || (self.fb_pixel_format != FRAMEBUFFER_FORMAT_RGB
+                    && self.fb_pixel_format != FRAMEBUFFER_FORMAT_BGR)
+                || self.fb_horiz_res == 0
+                || self.fb_vert_res == 0
+                || self.fb_pixels_per_scan_line < self.fb_horiz_res
+                || self.fb_addr.checked_add(self.fb_size).is_none()
+            {
+                return Err(BootInfoError::InvalidFramebuffer);
+            }
+            let required_bytes = u64::from(self.fb_pixels_per_scan_line)
+                .checked_mul(u64::from(self.fb_vert_res))
+                .and_then(|pixels| pixels.checked_mul(4))
+                .ok_or(BootInfoError::InvalidFramebuffer)?;
+            if required_bytes > self.fb_size {
+                return Err(BootInfoError::InvalidFramebuffer);
+            }
+        }
+
         let entries = &self.memory_map[..self.memory_map_count as usize];
         for d in entries {
             // Reject absurd page counts before multiplying.
@@ -267,6 +308,27 @@ impl BootInfo {
         if !covered {
             return Err(BootInfoError::KernelRangeNotReserved);
         }
+
+        // A reported framebuffer must be fully covered by a reserved,
+        // non-conventional descriptor so it can never be allocated as RAM.
+        if self.fb_addr != 0 {
+            let framebuffer_end = self.fb_addr
+                .checked_add(self.fb_size)
+                .ok_or(BootInfoError::InvalidFramebuffer)?;
+            let framebuffer_reserved = entries.iter().any(|descriptor| {
+                if descriptor.ty == 7 {
+                    return false;
+                }
+                match Self::descriptor_end(descriptor) {
+                    Some(end) => descriptor.phys_start <= self.fb_addr && framebuffer_end <= end,
+                    None => false,
+                }
+            });
+            if !framebuffer_reserved {
+                return Err(BootInfoError::InvalidFramebuffer);
+            }
+        }
+
         Ok(())
     }
 
@@ -368,6 +430,66 @@ mod tests {
             att: 0xF,
         };
         bi
+    }
+
+    #[test]
+    fn accepts_valid_framebuffer_when_reserved_in_memory_map() {
+        let mut bi = sample();
+        bi.memory_map_count = 3;
+        bi.memory_map[2] = MemoryDescriptor {
+            ty: 11, // MMIO framebuffer
+            _pad: 0,
+            phys_start: 0x3000_0000,
+            virt_start: 0,
+            page_count: 512, // 2 MiB
+            att: 0,
+        };
+        bi.fb_addr = 0x3000_0000;
+        bi.fb_size = 640 * 480 * 4;
+        bi.fb_pixel_format = FRAMEBUFFER_FORMAT_RGB;
+        bi.fb_horiz_res = 640;
+        bi.fb_vert_res = 480;
+        bi.fb_pixels_per_scan_line = 640;
+        assert_eq!(bi.validate(size_of::<BootInfo>()), Ok(()));
+        assert_eq!(bi.semantic_check(), Ok(()));
+    }
+
+    #[test]
+    fn rejects_malformed_framebuffer_geometry_and_size() {
+        let mut bi = sample();
+        bi.fb_addr = 0x3000_0000;
+        assert_eq!(
+            bi.validate(size_of::<BootInfo>()),
+            Err(BootInfoError::InvalidFramebuffer)
+        );
+
+        let mut bi = sample();
+        bi.fb_addr = 0x3000_0000;
+        bi.fb_size = 1024;
+        bi.fb_pixel_format = FRAMEBUFFER_FORMAT_RGB;
+        bi.fb_horiz_res = 640;
+        bi.fb_vert_res = 480;
+        bi.fb_pixels_per_scan_line = 640;
+        assert_eq!(
+            bi.validate(size_of::<BootInfo>()),
+            Err(BootInfoError::InvalidFramebuffer)
+        );
+    }
+
+    #[test]
+    fn rejects_framebuffer_not_covered_by_reserved_map_range() {
+        let mut bi = sample();
+        bi.fb_addr = 0x3000_0000;
+        bi.fb_size = 640 * 480 * 4;
+        bi.fb_pixel_format = FRAMEBUFFER_FORMAT_BGR;
+        bi.fb_horiz_res = 640;
+        bi.fb_vert_res = 480;
+        bi.fb_pixels_per_scan_line = 640;
+        assert_eq!(bi.validate(size_of::<BootInfo>()), Ok(()));
+        assert_eq!(
+            bi.semantic_check(),
+            Err(BootInfoError::InvalidFramebuffer)
+        );
     }
 
     #[test]

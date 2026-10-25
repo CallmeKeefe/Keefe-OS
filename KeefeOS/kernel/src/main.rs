@@ -66,6 +66,19 @@ pub extern "sysv64" fn kernel_start(boot_info_ptr: u64) -> ! {
         halt_forever();
     }
 
+    // Use only the GOP range validated in the shared BootInfo contract.
+    // Serial output remains available when firmware lacks a safe direct buffer.
+    if console::init_framebuffer(boot_info) {
+        println!(
+            "GOP framebuffer enabled: {}x{}, stride {}",
+            boot_info.fb_horiz_res,
+            boot_info.fb_vert_res,
+            boot_info.fb_pixels_per_scan_line
+        );
+    } else {
+        println!("GOP framebuffer unavailable; serial diagnostics remain active");
+    }
+
     let kernel_start = boot_info.kernel_start as usize;
     let kernel_end = boot_info.kernel_end as usize;
     println!("Kernel loaded at: {:#018x} - {:#018x}", kernel_start, kernel_end);
