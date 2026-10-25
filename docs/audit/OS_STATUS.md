@@ -1,53 +1,56 @@
 # KeefeOS current engineering status
 
-**Last evidence refresh:** 2026-10-25  
-**Verified commit:** `2683ea911db964a68f86c615372fc13171bf3c4e`  
-**CI run:** [40199251364](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40199251364)
+**Evidence refresh:** 2026-10-25  
+**Current commit:** `98f1830908c57861910df866a51dfafa138b0d04`  
+**CI run:** [40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209)
 
 ## Verified in CI
 
 | Check | Result | Evidence |
 |---|---|---|
-| Host `xtask` check | PASS | CI run 40199251364 |
-| Boot protocol / ELF parser unit tests | PASS | CI run 40199251364 |
-| Host-side kernel library tests | PASS | CI run 40199251364 |
-| `x86_64-unknown-none` kernel build | PASS | CI run 40199251364 |
-| `x86_64-unknown-uefi` loader build | PASS | CI run 40199251364 |
-| FAT disk image assembly | PASS | `KeefeOS/target/keefeos.img` uploaded as workflow artifact |
-| QEMU + OVMF serial boot | PASS for one configuration | Serial output observed `KEEFEOS-KERNEL-BOOT-OK` |
+| Host `xtask` check | PASS | Run 40201424209 |
+| Boot protocol / ELF parser tests | PASS — 22 tests | Run 40201424209 |
+| Host-side kernel unit tests | PASS — 31 tests | Run 40201424209 |
+| `x86_64-unknown-none` kernel build | PASS | Run 40201424209 |
+| `x86_64-unknown-uefi` loader build | PASS | Run 40201424209 |
+| FAT disk image assembly | PASS | Artifact uploaded by the workflow |
+| UEFI GOP splash | PASS for the tested OVMF configuration | Firmware BLT operations succeeded before ExitBootServices |
+| QEMU + OVMF early kernel boot | PASS for one configuration | Serial log observed `KEEFEOS-KERNEL-BOOT-OK` |
 
 ### Observed boot output
 
 The CI serial log reported:
 
-- Kernel physical range: `0x02000000..0x02815000`
-- The loader exited UEFI boot services and created normalized BootInfo.
-- The kernel printed `Validating KeefeOS BootInfo handoff...`.
-- The kernel reached its early idle path and printed `KEEFEOS-KERNEL-BOOT-OK`.
+- GOP candidate at `0x80000000`, size 4,096,000 bytes, mode 1280×800 with stride 1280.
+- `UEFI GOP splash drawn through firmware BLT`.
+- Kernel image range `0x02000000..0x02816000`.
+- The loader exited boot services and passed normalized BootInfo.
+- `GOP range has a gap in the final memory map; unsafe framebuffer writes refused`.
+- `KEEFEOS-KERNEL-BOOT-OK`.
 
-This verifies a real early boot milestone in QEMU/OVMF, not a full or production OS.
+This verifies a single x86-64 QEMU + OVMF early boot and a firmware-rendered splash. It does not verify a persistent kernel framebuffer console, a production OS, or physical hardware compatibility.
 
 ## Limitations
 
 | Area | Status |
 |---|---|
-| Load address | Fixed physical window from 32 MiB to below 64 MiB. Dynamic relocation is not implemented. |
-| Address-space model | Firmware mappings remain active during the smoke test; full higher-half/page-table setup is not verified. |
-| Graphics | GOP framebuffer and graphical console are not implemented; use serial output for diagnostics. |
+| Load address | Fixed physical 32–64 MiB window; dynamic relocation is not implemented. |
+| Address-space model | Firmware mappings remain active through the smoke test; higher-half/page-table setup and isolation are not verified. |
+| Visual output | UEFI BLT splash works before ExitBootServices. Kernel direct framebuffer output is disabled because the final memory map has a gap over the reported framebuffer range. |
 | Interrupts | CPU exception table exists; complete device IRQ routing and EOI path are not implemented. |
-| Memory | Frame allocator regression tests exist; diverse firmware maps and longer runtime stress tests remain. |
+| Memory | Frame allocator regression tests exist; diverse firmware maps and longer runtime stress remain. |
 | Drivers | No general ACPI/PCI/storage/USB/network/input/power-management stack. |
 | Security | Secure boot, cryptographic primitives, trusted random generation, capability signatures and real scanners are not implemented. Fail-closed API behavior is not equivalent to a secure system. |
 | Architecture | x86-64 only. ARM64 and RISC-V backends are not implemented. |
 | Installer | No end-user installer, upgrade path, recovery environment or production configuration. |
-| Compiler warnings | CI succeeds, but the kernel host test/build produced a large warning count; warnings need classification and cleanup. |
+| Compiler warnings | CI succeeds, but a large warning count remains; warnings need classification and cleanup. |
 | Physical hardware | Not tested. |
 
 ## Next engineering priorities
 
-1. Make the kernel load strategy robust against different firmware memory maps: implement verified relocations or keep the fixed-address contract explicit and fail diagnostically.
-2. Add UEFI GOP discovery and safe framebuffer metadata in BootInfo, then a minimal framebuffer console with serial fallback.
-3. Fix warning classes, especially naming and missing documentation, without blanket suppression.
-4. Add test runs against different QEMU memory sizes/device profiles.
-5. Review unsafe memory, paging and interrupt paths. Add driver/IRQ routing only after the boot memory contract is stable.
-6. Keep compatibility claims scoped to the exact tested configuration and continue branch consolidation separately.
+1. Investigate why OVMF's final memory map does not cover the GOP framebuffer range, without weakening the fail-closed check.
+2. Implement a properly validated MMIO mapping contract before enabling persistent kernel framebuffer writes.
+3. Add QEMU memory-size/device-profile test variations.
+4. Reduce real compiler warnings without blanket suppression.
+5. Review unsafe memory, paging and interrupt paths. Implement driver/IRQ routing only after the boot/memory contract is stable.
+6. Continue branch consolidation with explicit unique-commit dispositions.

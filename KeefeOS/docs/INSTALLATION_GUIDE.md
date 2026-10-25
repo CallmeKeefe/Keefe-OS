@@ -2,7 +2,7 @@
 
 **KeefeOS is not currently an installable end-user OS.** Do not use the commands in this guide to install it on physical hardware, dual-boot it, or write an image to a disk containing data.
 
-One x86-64 QEMU + OVMF UEFI boot path passed in [GitHub Actions run 40199251364](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40199251364). The build and smoke test are for development only. This does not establish compatibility with physical PCs, every UEFI implementation, or other architectures.
+One x86-64 QEMU + OVMF UEFI boot path passed in [GitHub Actions run 40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209). The run also confirms the pre-boot GOP splash is drawn through firmware BLT. The kernel's post-boot direct framebuffer remains disabled due to a gap in the final memory map. The build and smoke test are for development only. This does not establish compatibility with physical PCs, every UEFI implementation, or other architectures.
 
 ## Supported test environment
 
@@ -32,6 +32,6 @@ For the exact QEMU smoke test, use the GitHub Actions workflow linked above; it 
 - Tested: x86-64 QEMU + OVMF UEFI only.
 - Not tested: physical x86-64 hardware, VirtualBox, VMware, Hyper-V, or other UEFI implementations.
 - Not supported: legacy BIOS, ARM64, RISC-V, Apple Silicon as a native boot target, phones/tablets, and consoles.
-- Not implemented: end-user installer, disk partitioning/formatting workflow, upgrade process, recovery environment, graphics console, broad device driver stack, or safe production configuration.
+- Not implemented: end-user installer, disk partitioning/formatting workflow, upgrade process, recovery environment, persistent kernel graphics console, broad device driver stack, or safe production configuration.
 
 See [the compatibility matrix](../../docs/COMPATIBILITY.md) and [OS status](../../docs/audit/OS_STATUS.md) for evidence and remaining work.

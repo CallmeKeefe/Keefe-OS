@@ -6,19 +6,18 @@
 
 ## Latest verified milestone
 
-**PASS:** [GitHub Actions run 40199251364](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40199251364), commit `2683ea911db964a68f86c615372fc13171bf3c4e).
+**PASS:** [GitHub Actions run 40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209), commit `98f1830908c57861910df866a51dfafa138b0d04`.
 
-The run passed the BootInfo/ELF parser tests, host-side kernel tests, kernel build, UEFI loader build, image packaging, and QEMU/OVMF serial smoke test. The serial output reported:
+The run passed 22 boot-protocol/ELF tests, 31 kernel unit tests, the kernel and UEFI-loader builds, disk-image packaging, and the QEMU/OVMF serial smoke test. The firmware accepted all GOP BLT operations used to draw a readable boot splash before exiting boot services. The serial log reported:
 
 ```text
-Kernel image: 0x2000000..0x2815000
-Exiting UEFI boot services and creating normalized BootInfo
-Validating KeefeOS BootInfo handoff...
-KeefeOS kernel initialization reached idle path
+UEFI GOP splash drawn through firmware BLT
+GOP candidate: 0x80000000, 4096000 bytes, 1280x800, stride 1280
+GOP range has a gap in the final memory map; unsafe framebuffer writes refused
 KEEFEOS-KERNEL-BOOT-OK
 ```
 
-This proves one x86-64 QEMU + OVMF UEFI configuration reaches the kernel's early idle path. It does **not** establish a general-purpose OS, physical-device support, reliable long-running execution, secure boot, working user-space isolation, or production security. Build warnings remain and should be reduced.
+This verifies one x86-64 QEMU + OVMF boot path and a firmware-rendered splash. The kernel's persistent framebuffer console remains disabled because the final UEFI memory map does not fully describe the framebuffer range; serial remains the authoritative kernel diagnostic channel. It does **not** establish physical-device support, a general-purpose OS, secure boot, working user-space isolation, or production security. Build warnings remain and should be reduced.
 
 ## Current engineering status
 
@@ -30,7 +29,7 @@ This proves one x86-64 QEMU + OVMF UEFI configuration reaches the kernel's early
 | Kernel load address | Fixed 32–64 MiB identity-mapped window; relocation is not implemented |
 | Memory map | Versioned BootInfo with structural/semantic checks; broader firmware edge cases still need testing |
 | Physical frame allocator | Regression tests added; only the emulator path has been exercised |
-| GOP graphics / framebuffer console | Not implemented; diagnostics use serial |
+| UEFI visual boot splash | PASS in QEMU via firmware BLT before ExitBootServices |\n| Persistent kernel framebuffer console | Safely disabled; final UEFI map has a gap covering the GOP range, so direct writes are refused |
 | ACPI, PCI, storage, USB, network, input and power management | Not implemented as a general driver stack |
 | Secure boot, authenticated cryptography, capability signatures | Not implemented; security-sensitive interfaces fail closed |
 | Vulnerability scanner / attack detection | Placeholder APIs; empty output does not mean a clean system |

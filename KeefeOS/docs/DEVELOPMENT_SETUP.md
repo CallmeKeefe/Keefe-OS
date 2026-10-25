@@ -4,7 +4,7 @@ This guide covers source builds, tests, and a disposable QEMU image. It does not
 
 ## Verified test path
 
-One x86-64 QEMU + OVMF UEFI boot passed in [Actions run 40199251364](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40199251364) at commit `2683ea911db964a68f86c615372fc13171bf3c4e`. The serial output showed BootInfo validation and `KEEFEOS-KERNEL-BOOT-OK`.
+One x86-64 QEMU + OVMF UEFI boot passed in [Actions run 40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209) at commit `98f1830908c57861910df866a51dfafa138b0d04`. The run passed 22 boot-protocol tests and 31 kernel tests, and serial output showed BootInfo validation and `KEEFEOS-KERNEL-BOOT-OK`. The firmware also accepted GOP BLT operations for a readable boot splash.
 
 This is a single emulator configuration. Physical machines, other UEFI implementations, native Windows/macOS hosts, ARM64, RISC-V, phones, and other hypervisors are not verified. The loader currently uses a fixed 32–64 MiB x86-64 kernel load window rather than a relocatable image.
 
@@ -43,7 +43,7 @@ The GitHub Actions workflow is the authoritative tested path. It discovers OVMF 
 
 - The kernel load address is fixed, not dynamically relocatable.
 - The page-table/higher-half work is still experimental; the current smoke test uses the firmware-provided address space through early boot.
-- GOP framebuffer output and device drivers are not implemented; current diagnostic output is serial.
+- UEFI draws a visual splash via GOP BLT before ExitBootServices. The kernel's direct framebuffer console remains disabled because the final memory map has a gap over the GOP range; kernel diagnostics remain serial.
 - Build warnings remain and require cleanup.
 - Security, AI, scanner, and attack-detection modules are experimental placeholders; do not rely on them as protections.
 

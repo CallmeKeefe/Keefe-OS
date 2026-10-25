@@ -4,9 +4,9 @@ KeefeOS is an experimental x86-64 bare-metal kernel and UEFI loader. One early b
 
 ## Verified status
 
-GitHub Actions run [40199251364](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40199251364) passed parser tests, kernel tests, both builds, image packaging, and the QEMU/OVMF serial smoke test at commit `2683ea911db964a68f86c615372fc13171bf3c4e`. The kernel emitted `KEEFEOS-KERNEL-BOOT-OK` after validating BootInfo and reaching its early idle path.
+GitHub Actions run [40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209) passed 22 boot-protocol tests, 31 kernel unit tests, both builds, image packaging, and the QEMU/OVMF serial smoke test at commit `98f1830908c57861910df866a51dfafa138b0d04`. The firmware accepted the GOP BLT calls for a readable pre-boot splash, and the kernel emitted `KEEFEOS-KERNEL-BOOT-OK` after validating BootInfo.
 
-The tested kernel uses a **fixed 32–64 MiB x86-64 load window**. Relocation is not implemented. This does not prove support for physical hardware or every UEFI implementation. GOP graphics, ACPI, PCI enumeration, a broad driver stack, multi-architecture support, secure boot, real cryptography, and user-space isolation remain incomplete.
+The tested kernel uses a **fixed 32–64 MiB x86-64 load window**. Relocation is not implemented. The UEFI splash uses firmware BLT before exiting boot services. The post-boot framebuffer console is still fail-closed because the final memory map has a gap over the GOP range. This does not prove support for physical hardware or every UEFI implementation. ACPI, PCI enumeration, a broad driver stack, multi-architecture support, secure boot, real cryptography, and user-space isolation remain incomplete.
 
 ## Workspace packages
 

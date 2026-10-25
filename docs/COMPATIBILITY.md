@@ -1,13 +1,14 @@
 # KeefeOS hardware and platform compatibility
 
-**Status: early boot verified in one emulator configuration; not an end-user installable OS.**
+**Status: early boot and firmware-rendered splash verified in one emulator configuration; not an end-user installable OS.**
 
-The latest verified run is [GitHub Actions run 40199251364](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40199251364), commit `2683ea911db964a68f86c615372fc13171bf3c4e`. It built the kernel and UEFI loader, packaged an image, and observed `KEEFEOS-KERNEL-BOOT-OK` over serial in QEMU/OVMF.
+The latest evidence is [GitHub Actions run 40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209), commit `98f1830908c57861910df866a51dfafa138b0d04`. It passed 22 boot-protocol tests, 31 kernel tests, both target builds, image packaging, and a QEMU/OVMF serial boot smoke test. OVMF accepted the GOP BLT operations used to draw a readable splash before ExitBootServices. The kernel reached `KEEFEOS-KERNEL-BOOT-OK`.
 
 | Platform / firmware | Current status | Evidence / limitation |
 |---|---|---|
-| x86-64 QEMU + OVMF UEFI | **EARLY BOOT VERIFIED** | BootInfo validation and kernel idle-path marker observed in the cited CI run. Fixed 32–64 MiB load window; one virtual hardware profile only. |
-| Physical x86-64 PC with UEFI | NOT VERIFIED / NOT SUPPORTED FOR INSTALLATION | ACPI, GOP graphics, PCI/device enumeration, storage/input/network drivers, platform power handling and diverse firmware need work. |
+| x86-64 QEMU + OVMF UEFI | **EARLY BOOT + UEFI SPLASH VERIFIED** | BootInfo validation and kernel idle-path marker observed. GOP firmware BLT drew the pre-boot splash. Fixed 32–64 MiB load window; one virtual hardware profile only. |
+| Kernel direct framebuffer console | **FAIL-CLOSED / NOT ENABLED** | The final UEFI memory map has a gap over the GOP framebuffer range. Kernel refuses direct writes rather than assume that an untracked range is mapped safely. |
+| Physical x86-64 PC with UEFI | NOT VERIFIED / NOT SUPPORTED FOR INSTALLATION | ACPI, PCI/device enumeration, storage/input/network drivers, platform power handling and diverse firmware need work. |
 | Other UEFI firmware implementations | NOT VERIFIED | No test matrix across vendor firmware or differing memory maps. |
 | VirtualBox / VMware / Hyper-V | NOT VERIFIED | No serial smoke-test evidence yet. |
 | Legacy BIOS | NOT SUPPORTED | No BIOS boot stage or BIOS image format. |
@@ -19,11 +20,11 @@ The latest verified run is [GitHub Actions run 40199251364](https://github.com/C
 
 ## Next compatibility milestones
 
-1. Remove the fixed load-address limitation by implementing a relocatable kernel and verified relocation handling, or explicitly constrain supported memory layouts.
-2. Establish a stronger physical/virtual mapping contract and memory-map/allocator tests across varied QEMU memory sizes.
-3. Query UEFI GOP and initialize a framebuffer console through the BootInfo contract.
+1. Define and test an explicit MMIO mapping contract for the GOP framebuffer; do not weaken the reserved-range check merely to enable drawing.
+2. Remove the fixed load-address limitation by implementing a relocatable kernel and verified relocation handling, or keep the fixed layout explicitly constrained.
+3. Test memory-map parsing and allocator behavior across varied QEMU memory sizes and virtual device profiles.
 4. Add ACPI parsing, PCI enumeration, and selected virtual storage/input/network drivers.
-5. Test alternate QEMU device/memory profiles, then selected physical hardware.
+5. Test alternate QEMU configurations, then selected physical hardware with recovery and non-destructive test procedures.
 6. Build separate AArch64/RISC-V architecture backends with boot, exception, paging, atomics and CI; do not advertise compatibility until tests pass.
 
 ## Safety

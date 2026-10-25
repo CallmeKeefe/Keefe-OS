@@ -50,3 +50,10 @@ Cryptography and capability APIs now fail closed where real implementations are 
 Verified: one x86-64 QEMU + OVMF UEFI early boot reaches the kernel idle path.
 
 Not verified: physical PC installation, alternative firmware, other hypervisors, GUI, scheduler/process model, secure boot, real cryptography, capability isolation, broad device drivers, ARM64, RISC-V, phones, or production security.
+
+
+## Follow-up: readable GOP splash and strict framebuffer fallback (2026-10-25)
+
+Evidence: [GitHub Actions run 40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209), commit `98f1830908c57861910df866a51dfafa138b0d04`. The run passed 22 boot-protocol tests, 31 kernel unit tests, the kernel and UEFI builds, image packaging, and the QEMU/OVMF serial boot test. The bootloader draws a readable `KEEFEOS / SYSTEM BOOT / UEFI / X86_64` splash using the UEFI GOP BLT API before exiting boot services; the serial log confirms firmware BLT accepted the operations.
+
+The kernel's direct framebuffer console remains **disabled**. OVMF reports a 1280×800 GOP buffer at `0x80000000`, but the normalized final memory map has a gap covering that range. The loader records that condition and the kernel refuses direct writes. This is the correct fail-closed behavior until a sound MMIO mapping contract exists. Do not mark the persistent framebuffer console as implemented based only on the pre-boot splash.

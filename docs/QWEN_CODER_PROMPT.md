@@ -5,16 +5,9 @@ Canonical branch: main
 
 ## Current verified milestone
 
-At commit `2683ea911db964a68f86c615372fc13171bf3c4e`, [GitHub Actions run 40199251364](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40199251364) passed:
-- host-side xtask check;
-- BootInfo and ELF parser tests;
-- host-side kernel library tests;
-- kernel ELF build;
-- UEFI loader build;
-- FAT image assembly;
-- QEMU/OVMF serial smoke test, observing `KEEFEOS-KERNEL-BOOT-OK`.
+At commit `98f1830908c57861910df866a51dfafa138b0d04`, [GitHub Actions run 40201424209](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201424209) passed 22 boot-protocol tests, 31 kernel unit tests, the host helper check, both target builds, image packaging, and QEMU/OVMF early boot. The serial log observed `KEEFEOS-KERNEL-BOOT-OK`. UEFI GOP BLT calls also succeeded for a readable pre-boot splash with the text `KEEFEOS / SYSTEM BOOT / UEFI / X86_64`.
 
-The firmware loaded the image whose physical range was logged as `0x2000000..0x2815000`, exited boot services, passed the BootInfo handoff, and the kernel reached its early idle path. This is one x86-64 QEMU + OVMF test. It does not prove physical hardware support, a production OS, secure boot, robust long-running runtime behavior, or universal compatibility.
+Important limitation: the GOP candidate is at `0x80000000` with size 4,096,000 bytes (1280×800, stride 1280), but the final normalized UEFI memory map contains a gap over that range. The loader exposes diagnostic flags and the kernel refuses direct framebuffer writes; serial remains the kernel console. Do not weaken this check. Next, determine why the final map omits the framebuffer and implement/verify an explicit MMIO/page-table mapping contract before enabling persistent kernel graphics. Physical hardware and other architectures remain unsupported.
 
 ## Mission
 
@@ -71,3 +64,8 @@ The current kernel is linked to a fixed physical window 32–64 MiB. The loader 
 ## Required final report
 
 Include exact current HEAD, changed files/commit IDs, commands/tests and PASS/FAIL/BLOCKED/NOT TESTED outcomes, current Actions URL, serial boot evidence, remaining warnings and hardware limitations. Do not claim clean build, production security, complete device support, or branch deletion unless verified.
+
+
+## Latest visual-path status
+
+The UEFI splash is rendered with `GraphicsOutput::blt(VideoFill)` while Boot Services are active; CI confirms successful BLT calls and the kernel boot marker. Kernel framebuffer writes are still refused when the final UEFI memory map fails reserved-range coverage. Add a CI assertion for the `UEFI GOP splash drawn through firmware BLT` serial line, and keep persistent framebuffer output marked incomplete until the address-range mapping issue is fixed and tested.
