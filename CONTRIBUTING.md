@@ -23,7 +23,7 @@ cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unkno
 cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 ~~~
 
-These commands describe the intended checks, not guaranteed passing results. Consult the current Actions run and report any failure accurately. The boot flow is not yet verified; building an image is not the same as booting the OS. Do not claim QEMU boot success unless you actually observed and recorded it.
+These commands describe the intended checks, not guaranteed passing results. Consult the current Actions run for the exact commit and report any failure accurately. The currently documented CI evidence verifies an early-boot milestone under x86-64 QEMU + OVMF at three RAM sizes; it does not verify a complete OS or physical hardware. Image creation alone is not a boot test. See the [compatibility matrix](docs/COMPATIBILITY.md) and [current OS status](docs/audit/OS_STATUS.md).
 
 ## Contribution process
 
@@ -63,4 +63,4 @@ If repository branch protections require a pull request or approval, follow thos
 
 ## Licensing
 
-The workspace metadata declares MIT OR Apache-2.0, but canonical license text is currently missing from the repository tree. Resolve this with the repository owner before distributing contributions or release artifacts.
+The workspace metadata declares MIT OR Apache-2.0. The repository includes the corresponding license texts in LICENSE-MIT and LICENSE-APACHE; the root LICENSE explains the choice. By submitting a contribution, you confirm that you have the right to submit it and agree that the contribution is offered under the project's stated dual-license terms, unless you explicitly state otherwise. Do not submit third-party material without verifying its license and attribution requirements. This guidance is not legal advice.
