@@ -10,7 +10,6 @@
 //! after the validated BootInfo handoff proves the whole framebuffer range safe.
 
 use core::fmt::{self, Write};
-#[cfg(feature = "legacy-vga-console")]
 use core::ptr::NonNull;
 use crate::bootinfo::{BootInfo, FRAMEBUFFER_FORMAT_BGR, FRAMEBUFFER_FORMAT_RGB};
 use spin::Mutex;
