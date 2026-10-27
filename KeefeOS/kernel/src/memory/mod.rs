@@ -61,7 +61,9 @@ static FRAME_ALLOCATOR: Mutex<Option<PhysicalFrameAllocator>> = Mutex::new(None)
 /// Prevent a second initialization from making live physical frames allocatable again.
 static MEMORY_INIT_STARTED: AtomicBool = AtomicBool::new(false);
 
-/// Initialize the memory management subsystem
+/// Initialize the memory management subsystem once during early boot.
+///
+/// Re-initialization is refused so existing frame ownership cannot be reset.
 ///
 /// # Arguments
 ///
@@ -93,6 +95,10 @@ pub fn init(memory_map: &[UEFIMemoryRegion], kernel_start: usize, kernel_end: us
     
     // Initialize the frame allocator
     let mut allocator = FRAME_ALLOCATOR.lock();
+    if allocator.is_some() {
+        log::error!("Memory subsystem is already initialized; refusing to reset frame ownership");
+        return;
+    }
     *allocator = Some(PhysicalFrameAllocator::new(memory_map, kernel_start, kernel_end));
     
     if let Some(ref alloc) = *allocator {
