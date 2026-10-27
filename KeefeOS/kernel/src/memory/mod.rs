@@ -50,7 +50,7 @@ pub mod paging {
     }
 }
 
-use self::frame_allocator::PhysicalFrameAllocator;
+use self::frame_allocator::{PhysicalFrameAllocator, FRAME_SIZE};
 use core::sync::atomic::{AtomicBool, Ordering};
 use spin::Mutex;
 
