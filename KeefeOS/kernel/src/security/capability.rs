@@ -5,7 +5,6 @@
 //! not a signature. Until a reviewed verifier exists, capabilities cannot be
 //! issued, transferred, or authorized.
 
-#![no_std]
 extern crate alloc;
 
 use alloc::string::String;
