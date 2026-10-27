@@ -403,8 +403,8 @@ mod tests {
 
     #[test]
     fn unaligned_usable_ranges_only_free_wholly_contained_frames() {
-        // The first page is missing its first byte; the final page ends
-        // exactly at the descriptor end and is not included as a complete page.
+        // The first page is missing its first byte and the last page is missing
+        // its final byte because the descriptor end is exclusive.
         let map = [region(UEFIMemoryType::CONVENTIONAL, 0x10_0001, 0x2ffe)];
         let alloc = PhysicalFrameAllocator::new(&map, 0x40_0000, 0x40_1000);
 
