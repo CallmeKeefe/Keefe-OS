@@ -165,8 +165,9 @@ impl MemoryStats {
     }
 }
 
-/// UEFI Memory Region types
-/// Based on the UEFI specification
+/// UEFI memory types retain the specification's uppercase identifiers.
+/// Based on the UEFI specification.
+#[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum UEFIMemoryType {
