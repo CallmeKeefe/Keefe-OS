@@ -47,18 +47,11 @@ pub mod paging {
 }
 
 use self::frame_allocator::PhysicalFrameAllocator;
-use core::sync::atomic::{AtomicUsize, Ordering};
 use spin::Mutex;
 
 /// Global physical frame allocator
 /// This is initialized once during boot and used throughout the kernel lifetime
 static FRAME_ALLOCATOR: Mutex<Option<PhysicalFrameAllocator>> = Mutex::new(None);
-
-/// Total number of physical frames managed by the allocator
-static TOTAL_FRAMES: AtomicUsize = AtomicUsize::new(0);
-
-/// Number of currently allocated frames
-static ALLOCATED_FRAMES: AtomicUsize = AtomicUsize::new(0);
 
 /// Initialize the memory management subsystem
 ///
@@ -79,7 +72,7 @@ pub fn init(memory_map: &[UEFIMemoryRegion], kernel_start: usize, kernel_end: us
     let mut total_usable_bytes = 0usize;
     for region in memory_map {
         if region.ty == UEFIMemoryType::CONVENTIONAL {
-            total_usable_bytes += region.size;
+            total_usable_bytes = total_usable_bytes.saturating_add(region.size);
         }
     }
     
@@ -90,7 +83,6 @@ pub fn init(memory_map: &[UEFIMemoryRegion], kernel_start: usize, kernel_end: us
     *allocator = Some(PhysicalFrameAllocator::new(memory_map, kernel_start, kernel_end));
     
     if let Some(ref alloc) = *allocator {
-        TOTAL_FRAMES.store(alloc.total_frames(), Ordering::Relaxed);
         log::info!("Frame allocator initialized: {} frames ({:.2} GB)", 
                    alloc.total_frames(),
                    (alloc.total_frames() * 4096) as f64 / (1024.0 * 1024.0 * 1024.0));
