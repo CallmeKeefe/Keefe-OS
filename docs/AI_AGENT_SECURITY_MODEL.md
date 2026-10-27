@@ -89,3 +89,12 @@ Do not ship an agent capable of executing system commands until these prerequisi
 7. Threat-model review and adversarial tests for prompt injection, malicious tool responses, confused-deputy bugs, path traversal, and privilege escalation.
 
 At present these are design requirements, not implemented product features.
+
+## References and engineering basis
+
+These external documents inform the requirements above; linking them does not imply certification or compliance:
+
+- [OWASP MCP Top 10](https://owasp.org/projects/mcp-top-10) — token/secret exposure, scope creep, tool poisoning, command execution, authentication/authorization, and auditability risks for MCP integrations.
+- [OWASP Top 10 for Agentic Applications](https://genai.owasp.org/2025/12/09/owasp-top-10-for-agentic-applications-the-benchmark-for-agentic-security-in-the-age-of-autonomous-ai/) — agent goal hijacking, tool misuse, identity/privilege abuse, supply-chain risk, unexpected code execution, and memory/context poisoning.
+- [NIST AI RMF: Generative AI Profile (NIST AI 600-1)](https://doi.org/10.6028/NIST.AI.600-1) — lifecycle risk assessment, governance, measurement, and ongoing management for generative AI systems.
+- [The Rustonomicon: How Safe and Unsafe Interact](https://doc.rust-lang.org/stable/nomicon/safe-unsafe-meaning.html) — safe APIs must uphold Rust's safety guarantees even when called by code that misuses ordinary safe inputs.
