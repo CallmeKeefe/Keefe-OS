@@ -1,13 +1,16 @@
 //! Console Output for KeefeOS
 //!
-//! This module provides basic console output functionality:
-//! - VGA text buffer (16 colors, 80x25 resolution)
-//! - Serial port output (for debugging and logging, COM1 16550 UART)
+//! This module provides serial diagnostics and an optional, experimental GOP framebuffer writer.
 //!
-//! Early boot output is serial-only. UEFI does not guarantee VGA text mode or
-//! an identity-mapped VGA buffer; GOP framebuffer support requires a validated handoff.
+//! VGA text memory at 0xB8000 is not assumed to be mapped or usable. The legacy
+//! VGA writer is available only with the opt-in `legacy-vga-console` feature
+//! and must not be enabled without a target-specific mapping guarantee.
+//!
+//! Early boot output is serial-first. GOP framebuffer output is enabled only
+//! after the validated BootInfo handoff proves the whole framebuffer range safe.
 
 use core::fmt::{self, Write};
+#[cfg(feature = "legacy-vga-console")]
 use core::ptr::NonNull;
 use crate::bootinfo::{BootInfo, FRAMEBUFFER_FORMAT_BGR, FRAMEBUFFER_FORMAT_RGB};
 use spin::Mutex;
@@ -16,6 +19,7 @@ use x86_64::instructions::port::Port;
 /// Standard VGA text mode colors
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
+#[cfg(feature = "legacy-vga-console")]
 pub enum Color {
     Black = 0,
     Blue = 1,
@@ -39,8 +43,10 @@ pub enum Color {
 /// Combines foreground and background colors into a single byte
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
+#[cfg(feature = "legacy-vga-console")]
 pub struct ColorCode(u8);
 
+#[cfg(feature = "legacy-vga-console")]
 impl ColorCode {
     /// Create a new color code with the specified foreground and background colors
     pub const fn new(foreground: Color, background: Color) -> Self {
@@ -51,11 +57,13 @@ impl ColorCode {
 /// A single character cell in the VGA text buffer
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
+#[cfg(feature = "legacy-vga-console")]
 pub struct ScreenChar {
     ascii_character: u8,
     color_code: ColorCode,
 }
 
+#[cfg(feature = "legacy-vga-console")]
 impl ScreenChar {
     /// Create a new screen character
     pub const fn new(character: u8, color_code: ColorCode) -> Self {
@@ -67,19 +75,24 @@ impl ScreenChar {
 }
 
 /// VGA text buffer dimensions
+#[cfg(feature = "legacy-vga-console")]
 const BUFFER_HEIGHT: usize = 25;
+#[cfg(feature = "legacy-vga-console")]
 const BUFFER_WIDTH: usize = 80;
 
 /// VGA buffer memory address (standard location)
+#[cfg(feature = "legacy-vga-console")]
 const VGA_BUFFER_ADDRESS: usize = 0xB8000;
 
 /// The VGA text buffer structure
 #[repr(transparent)]
+#[cfg(feature = "legacy-vga-console")]
 struct Buffer {
     chars: [[ScreenChar; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 /// Writer to the VGA text buffer
+#[cfg(feature = "legacy-vga-console")]
 pub struct VgaWriter {
     column_position: usize,
     color_code: ColorCode,
@@ -88,8 +101,10 @@ pub struct VgaWriter {
 
 // SAFETY: All access to the VGA buffer is serialized through the global
 // `VGA_WRITER` mutex, so sending the writer between contexts is safe.
+#[cfg(feature = "legacy-vga-console")]
 unsafe impl Send for VgaWriter {}
 
+#[cfg(feature = "legacy-vga-console")]
 impl VgaWriter {
     /// Create a new VGA writer with default colors
     pub const fn new() -> Self {
@@ -193,6 +208,7 @@ impl VgaWriter {
 }
 
 /// Implement fmt::Write for VgaWriter to enable format! macro support
+#[cfg(feature = "legacy-vga-console")]
 impl fmt::Write for VgaWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write_message(s);
@@ -201,6 +217,7 @@ impl fmt::Write for VgaWriter {
 }
 
 /// Global VGA writer instance
+#[cfg(feature = "legacy-vga-console")]
 pub static VGA_WRITER: Mutex<VgaWriter> = Mutex::new(VgaWriter::new());
 
 /// Base I/O port of COM1
