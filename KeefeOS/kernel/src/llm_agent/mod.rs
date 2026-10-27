@@ -4,7 +4,6 @@
 //! system-management service. It handles a few recognized strings locally so
 //! the kernel can expose a stable prototype API without claiming AI inference.
 
-#![no_std]
 
 extern crate alloc;
 
