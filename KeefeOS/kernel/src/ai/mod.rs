@@ -11,8 +11,6 @@
 
 
 use core::sync::atomic::{AtomicU64, Ordering};
-use alloc::vec::Vec;
-use alloc::boxed::Box;
 
 pub mod scheduler;
 pub mod memory_predictor;
