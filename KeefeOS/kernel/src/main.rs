@@ -17,7 +17,6 @@
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt)]
-#![feature(naked_functions)]
 #![feature(alloc_error_handler)]
 
 extern crate alloc;
