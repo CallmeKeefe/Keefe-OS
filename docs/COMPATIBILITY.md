@@ -2,7 +2,7 @@
 
 **Status: early boot and UEFI splash verified in three QEMU RAM profiles; not an end-user installable OS.**
 
-Evidence: [GitHub Actions run 40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679), commit `df97691cdecd26ff3a099b981b542817088683b1`. The workflow passed 22 boot-protocol tests, 31 kernel tests, both target builds, image packaging, and the serial boot/splash smoke test at 256 MiB, 512 MiB, and 1 GiB RAM. OVMF rendered the splash through GOP BLT before ExitBootServices, and the kernel emitted `KEEFEOS-KERNEL-BOOT-OK` in each profile.
+Evidence: [GitHub Actions run 40602581622](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40602581622), audit-branch commit `67d692063c37c975e3799c55a8e1538d36058b04` (PR #27, not merged at the time of the run). The workflow passed the boot-protocol tests, kernel tests, both target builds, image packaging, and the serial boot/splash smoke test at 256 MiB, 512 MiB, and 1 GiB RAM. OVMF rendered the splash through GOP BLT before ExitBootServices, and the kernel emitted `KEEFEOS-KERNEL-BOOT-OK` in each profile.
 
 | Platform / firmware | Current status | Evidence / limitation |
 |---|---|---|
