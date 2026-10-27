@@ -1,16 +1,13 @@
-//! Anomaly Detection System for KeefeOS Security
-//!
-//! This module implements ML-based anomaly detection to identify:
-//! - Intrusion attempts
-//! - Malicious behavior patterns
-//! - Resource abuse
-//! - Privilege escalation attempts
-//!
-//! # Features
-//! - Real-time syscall pattern analysis
-//! - Behavioral profiling
-//! - Zero-day attack detection
-//! - Automated threat response
+//! Experimental heuristic classifier for KeefeOS development.
+ //!
+ //! This module evaluates caller-supplied numeric features and may consult an
+ //! experimental neural-network prototype. It is not connected to a syscall
+ //! telemetry pipeline, does not observe live processes or network traffic,
+ //! and is not a malware/zero-day detector or security enforcement mechanism.
+ //! Recommended actions are labels only; they do not isolate or terminate tasks.
+ //!
+ //! Do not use these outputs to make security decisions until the feature data,
+ //! model, calibration, and enforcement path have been independently validated.
 
 #![no_std]
 
@@ -21,10 +18,10 @@ static DETECTOR_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static ANOMALIES_DETECTED: AtomicU64 = AtomicU64::new(0);
 static FALSE_POSITIVES: AtomicU64 = AtomicU64::new(0);
 
-/// Initialize the anomaly detector
+/// Initialize the experimental heuristic classifier.
 pub fn init() {
     DETECTOR_INITIALIZED.store(true, Ordering::Release);
-    log::info!("AI-powered anomaly detector initialized");
+    log::warn!("Experimental anomaly heuristic initialized; not a security monitor");
 }
 
 /// Check if detector is initialized
@@ -49,7 +46,7 @@ impl SecurityMetrics {
         Self::default()
     }
     
-    /// Convert to feature vector for ML model
+    /// Convert to a feature vector for the experimental classifier.
     pub fn to_vector(&self) -> [f32; 7] {
         [
             self.syscall_rate,
@@ -106,7 +103,7 @@ impl Default for ThreatAssessment {
     }
 }
 
-/// Analyze security metrics and detect anomalies
+/// Evaluate supplied features with an experimental heuristic; not a security control.
 pub fn analyze(metrics: &SecurityMetrics) -> ThreatAssessment {
     if !is_initialized() {
         return ThreatAssessment::default();
@@ -119,13 +116,19 @@ pub fn analyze(metrics: &SecurityMetrics) -> ThreatAssessment {
         .map(|nn| nn.predict(&feature_vector))
         .unwrap_or([0.5; 16]);
     
-    let anomaly_score = prediction[2]; // Third output node = anomaly score
-    
+    let anomaly_score = prediction[2]; // Prototype output node; not calibrated confidence.
+    if !anomaly_score.is_finite() {
+        // Never propagate NaN or infinity into status/threshold calculations.
+        return ThreatAssessment::default();
+    }
+    let normalized_score = anomaly_score.clamp(0.0, 1.0);
+
     let mut assessment = ThreatAssessment {
-        is_anomalous: anomaly_score > 0.7,
-        threat_level: (anomaly_score * 10.0) as u8,
+        is_anomalous: normalized_score > 0.7,
+        threat_level: (normalized_score * 10.0) as u8,
         threat_category: ThreatCategory::None,
-        confidence: anomaly_score,
+        // This is a bounded prototype score, not calibrated confidence.
+        confidence: normalized_score,
         recommended_action: Action::None,
     };
     
@@ -167,15 +170,16 @@ fn classify_threat(metrics: &SecurityMetrics, prediction: &[f32]) -> ThreatCateg
     ThreatCategory::Suspicious
 }
 
-/// Determine appropriate response action
+/// Return a descriptive recommendation label for the supplied heuristic level.
+///
+/// These labels do not execute an action or enforce policy.
 fn determine_action(threat_level: u8, category: &ThreatCategory) -> Action {
-    match (threat_level, category) {
-        (0..=3, _) => Action::Log,
-        (4..=5, ThreatCategory::Suspicious) => Action::Alert,
-        (4..=6, _) => Action::Alert,
-        (7..=8, ThreatCategory::ResourceAbuse) => Action::Throttle,
-        (7..=9, _) => Action::Isolate,
-        (9..=10, _) => Action::Terminate,
+    match threat_level {
+        0..=3 => Action::Log,
+        4..=6 => Action::Alert,
+        7..=8 if *category == ThreatCategory::ResourceAbuse => Action::Throttle,
+        7..=8 => Action::Isolate,
+        9..=10 => Action::Terminate,
         _ => Action::Log,
     }
 }
@@ -246,37 +250,30 @@ impl ProcessProfile {
     }
 }
 
-/// Get detection statistics
+/// Get prototype event counters. These counters are not a model-accuracy metric.
 pub fn get_stats() -> DetectionStats {
-    let anomalies = ANOMALIES_DETECTED.load(Ordering::Relaxed);
-    let false_pos = FALSE_POSITIVES.load(Ordering::Relaxed);
-    
-    let accuracy = if anomalies > 0 {
-        ((anomalies - false_pos) * 100) / anomalies
-    } else {
-        100
-    };
-    
     DetectionStats {
-        anomalies_detected: anomalies,
-        false_positives: false_pos,
-        accuracy_percent: accuracy as u8,
+        anomalies_detected: ANOMALIES_DETECTED.load(Ordering::Relaxed),
+        false_positives: FALSE_POSITIVES.load(Ordering::Relaxed),
     }
 }
 
+/// Counts from the experimental classifier. No labeled evaluation data exists,
+/// so accuracy is intentionally not reported.
 #[derive(Debug, Clone, Default)]
 pub struct DetectionStats {
+    /// Number of feature evaluations above the heuristic threshold.
     pub anomalies_detected: u64,
+    /// User-reported false-positive count; not independently verified.
     pub false_positives: u64,
-    pub accuracy_percent: u8,
 }
 
 impl core::fmt::Display for DetectionStats {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        writeln!(f, "Anomaly Detection Statistics:")?;
-        writeln!(f, "  Anomalies Detected: {}", self.anomalies_detected)?;
-        writeln!(f, "  False Positives: {}", self.false_positives)?;
-        writeln!(f, "  Accuracy: {}%", self.accuracy_percent)?;
+        writeln!(f, "Experimental anomaly heuristic counters (not a security monitor):")?;
+        writeln!(f, "  Above-threshold evaluations: {}", self.anomalies_detected)?;
+        writeln!(f, "  Reported false positives: {}", self.false_positives)?;
+        writeln!(f, "  Accuracy: not measured (no labeled evaluation dataset)")?;
         Ok(())
     }
 }
@@ -285,4 +282,21 @@ impl core::fmt::Display for DetectionStats {
 pub fn report_false_positive() {
     FALSE_POSITIVES.fetch_add(1, Ordering::Relaxed);
     crate::ai::record_training();
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::{determine_action, Action, ThreatCategory};
+
+    #[test]
+    fn response_thresholds_do_not_overlap_and_critical_level_terminates() {
+        assert_eq!(determine_action(3, &ThreatCategory::Suspicious), Action::Log);
+        assert_eq!(determine_action(4, &ThreatCategory::Suspicious), Action::Alert);
+        assert_eq!(determine_action(8, &ThreatCategory::ResourceAbuse), Action::Throttle);
+        assert_eq!(determine_action(8, &ThreatCategory::Suspicious), Action::Isolate);
+        assert_eq!(determine_action(9, &ThreatCategory::Suspicious), Action::Terminate);
+        assert_eq!(determine_action(10, &ThreatCategory::ResourceAbuse), Action::Terminate);
+        assert_eq!(determine_action(11, &ThreatCategory::Suspicious), Action::Log);
+    }
 }
