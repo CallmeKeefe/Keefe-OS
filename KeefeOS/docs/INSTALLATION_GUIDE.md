@@ -9,7 +9,7 @@ The latest verified CI run [40201976679](https://github.com/CallmeKeefe/Keefe-OS
 Use Linux or WSL2 with Rust nightly, QEMU, and OVMF:
 
 ```sh
-rustup toolchain install nightly --component rust-src --component llvm-tools --component rustfmt --component clippy --target x86_64-unknown-none --target x86_64-unknown-uefi
+rustup toolchain install nightly-2026-10-27 --profile minimal --component rust-src --component llvm-tools --component rustfmt --component clippy --target x86_64-unknown-none --target x86_64-unknown-uefi
 sudo apt-get update
 sudo apt-get install -y qemu-system-x86 ovmf
 ```
@@ -18,11 +18,11 @@ From repository root:
 
 ```sh
 cd KeefeOS
-cargo +nightly test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
-cargo +nightly test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
-cargo +nightly build --locked --package keefeos-kernel --target x86_64-unknown-none
-cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
-cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
+cargo test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
+cargo test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
+cargo build --locked --package keefeos-kernel --target x86_64-unknown-none
+cargo build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
+cargo run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 ```
 
 For the reproducible RAM matrix, use the GitHub Actions workflow, which starts separate QEMU/OVMF instances with independent OVMF variable copies and captures one serial log per RAM profile.
