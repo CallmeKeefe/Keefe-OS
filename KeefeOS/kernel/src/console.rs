@@ -6,8 +6,10 @@
 //! VGA writer is available only with the opt-in `legacy-vga-console` feature
 //! and must not be enabled without a target-specific mapping guarantee.
 //!
-//! Early boot output is serial-first. GOP framebuffer output is enabled only
-//! after the validated BootInfo handoff proves the whole framebuffer range safe.
+//! Early boot output is serial-first. The UEFI loader draws its splash using
+//! firmware GOP BLT calls before ExitBootServices. Direct kernel framebuffer
+//! writes remain disabled by default because reserved memory descriptors do
+//! not prove active virtual mapping or correct MMIO cache attributes.
 
 use core::fmt::{self, Write};
 use core::ptr::NonNull;
@@ -339,6 +341,9 @@ struct FramebufferWriter {
     cursor_y: usize,
 }
 
+// SAFETY: FramebufferWriter is only stored behind FRAMEBUFFER_WRITER's global
+// spin mutex, so mutable access is serialized. The caller of the unsafe
+// initializer must ensure the mapping remains valid for the writer's lifetime.
 unsafe impl Send for FramebufferWriter {}
 
 impl FramebufferWriter {
@@ -561,11 +566,20 @@ fn glyph(byte: u8) -> [u8; 5] {
     }
 }
 
-/// Initialize a checked GOP framebuffer writer after BootInfo validation.
+/// Initialize the experimental direct GOP framebuffer writer.
 ///
-/// Returns false when the loader did not expose a supported, reserved RGB/BGR
-/// framebuffer. Serial output remains available regardless.
-pub fn init_framebuffer(info: &BootInfo) -> bool {
+/// This is intentionally unsafe. The BootInfo format can validate geometry and
+/// firmware memory-map coverage, but that alone does not prove that the current
+/// page tables map the whole region with suitable writable MMIO cache attributes.
+///
+/// # Safety
+///
+/// The caller must verify the BootInfo structure and semantic invariants, require
+/// BOOT_INFO_FLAG_GOP_RESERVED, prove the full framebuffer range is currently
+/// mapped and writable with correct device-memory attributes, and ensure that
+/// mapping remains valid for the lifetime of the writer. The normal kernel boot
+/// path does not call this function and stays serial-only.
+pub unsafe fn init_framebuffer(info: &BootInfo) -> bool {
     let Some(mut writer) = FramebufferWriter::from_boot_info(info) else {
         return false;
     };
@@ -607,10 +621,10 @@ pub fn init() {
     }
 
     // Do not touch VGA text memory: UEFI does not promise legacy VGA mode.
-    log::info!("Console initialized (COM1 serial only; GOP is not wired yet)");
+    log::info!("Console initialized on COM1; direct kernel framebuffer output remains disabled pending page-table/MMIO validation");
 }
 
-/// Write a byte to both VGA and serial outputs
+/// Write a byte to serial and the optional, explicitly initialized GOP writer.
 pub fn write_byte(byte: u8) {
     // Serial always remains available as the fallback diagnostic channel.
     {
@@ -624,7 +638,7 @@ pub fn write_byte(byte: u8) {
     }
 }
 
-/// Write a string to both outputs
+/// Write a string to serial and the optional, explicitly initialized GOP writer.
 pub fn write_str(s: &str) {
     for byte in s.bytes() {
         write_byte(byte);
