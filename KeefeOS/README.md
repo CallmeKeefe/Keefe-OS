@@ -20,12 +20,12 @@ The loader draws a UEFI GOP splash using firmware BLT before ExitBootServices. T
 Use Rust nightly with `rust-src`, `llvm-tools`, `rustfmt`, `clippy`, `x86_64-unknown-none`, and `x86_64-unknown-uefi`. Linux/WSL2 with QEMU and OVMF is the current development path.
 
 ```sh
-cargo +nightly fmt --all -- --check
-cargo +nightly test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
-cargo +nightly test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
-cargo +nightly build --locked --package keefeos-kernel --target x86_64-unknown-none
-cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
-cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
+cargo fmt --all -- --check
+cargo test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
+cargo test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
+cargo build --locked --package keefeos-kernel --target x86_64-unknown-none
+cargo build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
+cargo run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 ```
 
 CI performs the actual QEMU/OVMF boot matrix. A successful build or image generation is not by itself evidence of a boot.
