@@ -1,7 +1,9 @@
 //! Physical Frame Allocator (Bitmap-Based)
 //!
 //! This module implements a bitmap-based physical frame allocator.
-//! Each bit represents one 4KB physical page frame.
+//! Each bit represents one 4 KiB physical page frame. One bitmap tracks occupied
+//! frames, while a separate eligibility bitmap prevents reserved/kernel frames
+//! from being returned by deallocation.
 //!
 //! # Data Structure
 //!
@@ -22,8 +24,9 @@
 //! - **Allocation**: O(n/64) where n is the number of frames
 //!   - In practice, very fast due to bit scanning instructions
 //! - **Deallocation**: O(1) - just clear a bit
-//! - **Memory Overhead**: 1 bit per 4KB = 0.003% overhead
-//!   - Example: 64GB RAM needs only ~2MB for the bitmap
+//! - **Memory Overhead**: 2 bits per 4KB = about 0.006% overhead
+//!   - Example: 64 GiB addressable space needs at most about 4 MiB across both bitmaps
+//!   - Smaller systems allocate bitmap storage proportional to their highest described address
 //!
 //! # Thread Safety
 //!
