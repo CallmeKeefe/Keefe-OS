@@ -31,6 +31,9 @@ default = ["uefi-boot"]
 uefi-boot = ["dep:uefi"]
 # The page-table managers are legacy prototypes and are disabled until migrated.
 experimental-paging = []
+# Unsafe legacy VGA text-memory output is disabled unless a target explicitly opts in.
+# Do not enable without proving 0xB8000 is mapped as VGA text memory on the target.
+legacy-vga-console = []
 
 # No standard library - pure bare-metal
 [lib]
