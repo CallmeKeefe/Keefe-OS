@@ -175,6 +175,15 @@ mod tests {
     }
 
     #[test]
+    fn status_command_reports_verified_scope_without_claiming_full_os_support() {
+        AGENT_INITIALIZED.store(true, Ordering::Release);
+        let response = process_command("status");
+        assert!(response.message.contains("QEMU/OVMF"));
+        assert!(response.message.contains("does not establish a complete OS"));
+        assert!(response.message.contains("process isolation"));
+    }
+
+    #[test]
     fn unknown_commands_are_not_executed() {
         AGENT_INITIALIZED.store(true, Ordering::Release);
         let response = process_command("delete user files");
