@@ -91,6 +91,18 @@ KeefeOS is not a security boundary. Secure-boot signature verification, trusted 
 
 Read [SECURITY.md](SECURITY.md), [the security status](docs/audit/SECURITY_STATUS.md), and [the initial codebase audit](docs/audit/INITIAL_CODEBASE_AUDIT.md).
 
+## Architecture and planned direction
+
+The current implementation is an experimental x86-64 kernel/UEFI boot path. The multi-device system and AI-agent experience are long-term goals, not working features yet.
+
+- [Architecture guide](docs/ARCHITECTURE.md) — current crates, trust boundaries, and target layering.
+- [Staged roadmap](docs/ROADMAP.md) — acceptance gates for kernel safety, user space, drivers, portability, and cross-device support.
+- [AI agent security model](docs/AI_AGENT_SECURITY_MODEL.md) — intended MCP/API/provider design, least-privilege tools, credential handling, and human approvals.
+
+**Design rule:** the LLM/agent runtime, API keys, MCP clients, and tool executors belong in isolated user space after process isolation and IPC enforcement exist. They must not run as privileged kernel code. Cross-device support must be proven separately for each architecture, firmware, and device configuration.
+
+The [NEXUS design](NEXUS_OS_DESIGN.md), [roadmap](NEXUS_OS_ROADMAP.md), and [integration proposal](NEXUS_OS_INTEGRATION.md) are aspirational documents; they are not implementation evidence.
+
 ## Community and contribution
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — development workflow, safety expectations, testing, and pull-request checklist.
