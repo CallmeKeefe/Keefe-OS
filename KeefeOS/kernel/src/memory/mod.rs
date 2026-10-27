@@ -47,11 +47,15 @@ pub mod paging {
 }
 
 use self::frame_allocator::PhysicalFrameAllocator;
+use core::sync::atomic::{AtomicBool, Ordering};
 use spin::Mutex;
 
 /// Global physical frame allocator
 /// This is initialized once during boot and used throughout the kernel lifetime
 static FRAME_ALLOCATOR: Mutex<Option<PhysicalFrameAllocator>> = Mutex::new(None);
+
+/// Prevent a second initialization from making live physical frames allocatable again.
+static MEMORY_INIT_STARTED: AtomicBool = AtomicBool::new(false);
 
 /// Initialize the memory management subsystem
 ///
@@ -61,11 +65,16 @@ static FRAME_ALLOCATOR: Mutex<Option<PhysicalFrameAllocator>> = Mutex::new(None)
 /// * `kernel_start` - Physical start address of the kernel
 /// * `kernel_end` - Physical end address of the kernel
 ///
-/// # Safety
-///
-/// This function must be called exactly once during system initialization.
-/// Calling it multiple times will cause memory corruption.
+/// Initializes memory state once. A duplicate call is rejected because replacing
+/// the allocator could make still-live frames available for allocation again.
 pub fn init(memory_map: &[UEFIMemoryRegion], kernel_start: usize, kernel_end: usize) {
+    if MEMORY_INIT_STARTED
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        log::error!("Memory initialization requested more than once; ignoring duplicate call");
+        return;
+    }
     log::info!("Initializing memory management subsystem...");
     
     // Calculate total usable memory
