@@ -52,7 +52,7 @@ Acceptance:
 
 ## Stage 4 — Secure service and permission framework
 
-Track security foundations in [#20](https://github.com/CallmeKeefe/Keefe-OS/issues/20). Use maintained cryptographic components and independent review; do not invent custom cryptography.
+Track security foundations in [#20](https://github.com/CallmeKeefe/Keefe-OS/issues/20), and dependency/license/provenance checks in [#25](https://github.com/CallmeKeefe/Keefe-OS/issues/25). Use maintained cryptographic components and independent review; do not invent custom cryptography.
 
 Acceptance:
 - trusted entropy and key management are implemented for the chosen target;
@@ -63,7 +63,7 @@ Acceptance:
 
 ## Stage 5 — Personal agent runtime and MCP/API integrations
 
-See [the AI agent security model](AI_AGENT_SECURITY_MODEL.md). The agent belongs in user space, not the kernel. Do not begin unrestricted command execution before process isolation, IPC authorization, sandboxing, and credential storage exist.
+See [the AI agent security model](AI_AGENT_SECURITY_MODEL.md) and implementation work tracked in [#24](https://github.com/CallmeKeefe/Keefe-OS/issues/24). The agent belongs in user space, not the kernel. Do not begin unrestricted command execution before process isolation, IPC authorization, sandboxing, and credential storage exist.
 
 First useful MVP:
 - local UI for a conversation and a visible action plan;
@@ -103,7 +103,7 @@ Acceptance:
 
 ## Release gates
 
-A milestone is complete only when:
+Repository-wide documentation consolidation, license/provenance review, and stale-branch dispositions are tracked in [#26](https://github.com/CallmeKeefe/Keefe-OS/issues/26). A milestone is complete only when:
 - code is merged through review;
 - required CI passes on the exact merged commit;
 - tests and artifacts can be reproduced;
