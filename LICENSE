@@ -1,0 +1,8 @@
+KeefeOS is dual-licensed. You may choose either license for project source code:
+
+- MIT: see [LICENSE-MIT](LICENSE-MIT).
+- Apache License, Version 2.0: see [LICENSE-APACHE](LICENSE-APACHE) or https://www.apache.org/licenses/LICENSE-2.0.
+
+Unless a file or third-party component states otherwise, the project intends the Rust workspace license expression MIT OR Apache-2.0 to apply. Third-party dependencies retain their own licenses; review their notices before redistribution.
+
+Do not add a file under this project's license unless you have the right to license it.

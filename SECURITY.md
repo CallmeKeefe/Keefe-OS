@@ -1,6 +1,6 @@
 # Security policy
 
-KeefeOS is an experimental x86-64 operating-system prototype. It is not currently verified to boot and is not a production security boundary. Do not use it to store, process, or protect sensitive information.
+KeefeOS is an experimental x86-64 operating-system prototype. CI has verified an early-boot path under x86-64 QEMU + OVMF at three RAM profiles, but this is not a complete operating system, physical-hardware validation, or a production security boundary. Do not use it to store, process, or protect sensitive information.
 
 ## Reporting a vulnerability
 
