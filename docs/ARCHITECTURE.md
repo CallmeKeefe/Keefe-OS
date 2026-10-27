@@ -30,7 +30,7 @@ Repository-level documentation is authoritative for community policy and the cur
 5. The kernel validates the handoff and reads the memory map.
 6. QEMU/OVMF tests require the kernel boot marker. The firmware can render a splash before ExitBootServices; the persistent direct kernel framebuffer remains disabled when the memory-map range cannot be proven safe.
 
-The known CI evidence is [run 40600247257](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40600247257) on the current main commit, which passed the configured workflow. That is still a QEMU-based early-boot check, not proof of a complete OS, physical hardware support, or a security boundary.
+The last verified baseline before this review was [run 40600247257](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40600247257) on commit `3c474110c427233c0d6b73373848fd7bb34d4142`. This audit branch adds code and CI changes that need their own run. The baseline result is still a QEMU-based early-boot check, not proof of a complete OS, physical hardware support, or a security boundary.
 
 ## 3. Intended layering
 
