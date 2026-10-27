@@ -442,7 +442,9 @@ mod tests {
         assert!(alloc.is_allocated(0x10_0000 / FRAME_SIZE));
         assert!(!alloc.is_allocated(0x10_1000 / FRAME_SIZE));
         assert!(alloc.is_allocated(0x10_2000 / FRAME_SIZE));
-        assert!(alloc.is_allocated(0x10_3000 / FRAME_SIZE));
+        // The exclusive end is 0x102fff, so the allocator tracks 0x103
+        // frames (indices 0..=0x102); 0x103000 is outside the managed range.
+        assert_eq!(alloc.total_frames(), 0x10_3000 / FRAME_SIZE);
     }
 
     #[test]
