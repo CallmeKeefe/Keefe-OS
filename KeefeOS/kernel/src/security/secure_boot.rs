@@ -4,7 +4,6 @@
 //! or an authenticated trust chain. It deliberately reports NOT IMPLEMENTED
 //! rather than returning success for arbitrary signatures.
 
-#![no_std]
 
 extern crate alloc;
 
