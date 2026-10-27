@@ -1,7 +1,9 @@
-//! Virtual Memory Manager (Paging) for x86_64
+//! Experimental x86_64 paging helpers and page-table prototypes.
 //!
-//! This module implements 4-level paging as defined by the x86_64 architecture.
-//! It provides safe Rust abstractions for page tables and virtual memory mapping.
+//! The current boot path does not establish a fully verified page-table lifecycle,
+//! higher-half mapping, or per-process isolation. Mapping flags and arithmetic
+//! helpers do not by themselves implement capability-based authorization. This
+//! module is not a production memory-isolation or security boundary.
 //!
 //! # x86_64 4-Level Paging Structure
 //!
@@ -38,9 +40,9 @@
 //! Bit 63 (XD): Execute Disable - Prevent code execution (security)
 //! ```
 //!
-//! # Capability-Based Security Design
+//! # Target permission model (not yet enforced as a capability system)
 //!
-//! In KeefeOS, memory access is controlled through capabilities:
+//! A future implementation aims to mediate memory access through kernel-enforced capabilities:
 //! - A process can only map pages it holds capabilities for
 //! - Page permissions (R/W/X) are enforced at the hardware level
 //! - User/supervisor bit provides isolation between kernel and user space
