@@ -7,8 +7,6 @@ version = "0.1.0"
 edition = "2024"
 authors = ["KeefeOS Team"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/CallmeKeefe/Keefe-OS"
-description = "Experimental x86_64 bare-metal OS kernel and UEFI loader written in Rust"
 
 [workspace.dependencies]
 # uefi 0.33 provides the supported helper/logger API; uefi-services is deprecated.
