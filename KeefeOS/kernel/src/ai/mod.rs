@@ -9,7 +9,6 @@
 //! belong in a future isolated user-space service after process and IPC
 //! boundaries exist.
 
-#![no_std]
 
 use core::sync::atomic::{AtomicU64, Ordering};
 use alloc::vec::Vec;
