@@ -11,11 +11,15 @@
 //!
 //! We chose a **Bitmap Allocator** for the following reasons:
 //!
-//! 1. **O(1) Allocation/Deallocation**: Finding and toggling a bit is constant time
-//! 2. **Cache Efficiency**: The bitmap is compact and fits in cache
-//! 3. **Fragmentation Tracking**: Easy to detect and handle fragmentation
-//! 4. **NUMA Ready**: Can be extended with per-NUMA-node bitmaps
-//! 5. **Security**: Clear visualization of all allocated frames
+//! 1. **Compact tracking**: One bit per 4 KiB frame; bitmap size is proportional
+//!    to the managed physical-address span, capped at 64 GiB.
+//! 2. **Bounded bit updates**: Marking one frame allocated or free is O(1).
+//! 3. **First-fit scanning**: Single-frame allocation scans bitmap words; it is
+//!    O(number of tracked words), not O(1).
+//! 4. **Contiguous allocation**: The current implementation performs a linear
+//!    first-fit scan and is intended for early bring-up, not production workloads.
+//! 5. **Future work**: Per-CPU or NUMA-aware allocators require a verified SMP
+//!    model; the current global spinlock is not a NUMA/multi-core design.
 //!
 //! A stack allocator would be faster for LIFO patterns but suffers from:
 //! - O(n) worst-case for finding free frames
