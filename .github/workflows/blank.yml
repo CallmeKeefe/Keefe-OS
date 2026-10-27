@@ -63,6 +63,9 @@ jobs:
       - name: Clippy kernel library
         run: cargo clippy --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
 
+      - name: Compile opt-in legacy VGA console without enabling it in normal builds
+        run: cargo check --locked --package keefeos-kernel --lib --features legacy-vga-console --target x86_64-unknown-linux-gnu
+
       - name: Clippy host build helper
         run: cargo clippy --locked --package xtask --target x86_64-unknown-linux-gnu
 
