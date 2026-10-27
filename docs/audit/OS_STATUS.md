@@ -1,18 +1,18 @@
 # KeefeOS current engineering status
 
-**Evidence refresh:** 2026-10-25  
-**Current tested commit:** `df97691cdecd26ff3a099b981b542817088683b1`  
-**CI run:** [40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679)
+**Evidence refresh:** 2026-10-28  
+**Latest passing audit-branch commit:** `67d692063c37c975e3799c55a8e1538d36058b04` (PR #27, not merged)  
+**CI run:** [40602581622](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40602581622)
 
 ## Verified in CI
 
 | Check | Result | Evidence |
 |---|---|---|
-| Host `xtask` check | PASS | Run 40201976679 |
-| Boot protocol / ELF parser tests | PASS — 22 tests | Run 40201976679 |
-| Host-side kernel unit tests | PASS — 31 tests | Run 40201976679 |
-| `x86_64-unknown-none` kernel build | PASS | Run 40201976679 |
-| `x86_64-unknown-uefi` loader build | PASS | Run 40201976679 |
+| Host `xtask` check | PASS | Run 40602581622 |
+| Boot protocol / ELF parser tests | PASS — 22 tests | Run 40602581622 |
+| Host-side kernel unit tests | PASS — 31 tests | Run 40602581622 |
+| `x86_64-unknown-none` kernel build | PASS | Run 40602581622 |
+| `x86_64-unknown-uefi` loader build | PASS | Run 40602581622 |
 | FAT disk image assembly | PASS | Artifact uploaded by workflow |
 | QEMU/OVMF early boot + splash | PASS at 256 MiB, 512 MiB, and 1 GiB | The splash and kernel marker are required in each serial log |
 
