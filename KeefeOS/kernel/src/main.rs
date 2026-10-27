@@ -128,10 +128,18 @@ pub extern "sysv64" fn kernel_start(boot_info_ptr: u64) -> ! {
 
     // Print memory statistics
     let stats = memory::get_memory_stats();
-    println!("Memory Stats:");
-    println!("  Total frames: {}", stats.total_frames);
-    println!("  Free frames: {}", stats.free_frames);
-    println!("  Total memory: {} GB", stats.total_bytes as f64 / (1024.0 * 1024.0 * 1024.0));
+    println!("Memory Stats (allocator view):");
+    println!("  Address span tracked: {} frames", stats.addressable_frames);
+    println!("  Occupied/reserved frames: {}", stats.occupied_frames);
+    println!("  Free usable frames: {}", stats.free_frames);
+    println!(
+        "  Address span (includes reserved gaps): {:.2} GiB",
+        stats.addressable_bytes as f64 / (1024.0 * 1024.0 * 1024.0)
+    );
+    println!(
+        "  Free conventional RAM: {} MiB",
+        stats.free_bytes / (1024 * 1024)
+    );
     
     // Initialize GDT (Global Descriptor Table) and TSS
     println!("Initializing GDT and TSS...");
