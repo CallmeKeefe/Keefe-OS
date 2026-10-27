@@ -143,36 +143,51 @@ pub fn get_memory_stats() -> MemoryStats {
     let allocator = get_frame_allocator();
     if let Some(ref alloc) = *allocator {
         MemoryStats {
-            total_frames: alloc.total_frames(),
-            allocated_frames: alloc.allocated_count(),
+            addressable_frames: alloc.total_frames(),
+            occupied_frames: alloc.allocated_count(),
             free_frames: alloc.free_count(),
-            total_bytes: alloc.total_frames() * 4096,
-            allocated_bytes: alloc.allocated_count() * 4096,
-            free_bytes: alloc.free_count() * 4096,
+            addressable_bytes: alloc.total_frames() * FRAME_SIZE,
+            occupied_bytes: alloc.allocated_count() * FRAME_SIZE,
+            free_bytes: alloc.free_count() * FRAME_SIZE,
         }
     } else {
         MemoryStats::default()
     }
 }
 
-/// Memory statistics structure
+/// Snapshot of the physical-frame allocator's counters.
+///
+/// These metrics distinguish the tracked physical address span from usable
+/// memory. The addressable span includes gaps and reserved firmware ranges;
+/// occupied frames include reserved/unavailable frames and are not equivalent
+/// to live allocations. Free frames are only complete pages backed by usable
+/// conventional memory descriptors.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MemoryStats {
-    pub total_frames: usize,
-    pub allocated_frames: usize,
+    /// Number of frame slots between physical address zero and the highest tracked range.
+    pub addressable_frames: usize,
+    /// Number of frame slots that are reserved, unavailable, or currently allocated.
+    pub occupied_frames: usize,
+    /// Number of currently available full conventional-memory frames.
     pub free_frames: usize,
-    pub total_bytes: usize,
-    pub allocated_bytes: usize,
+    /// Address span represented by the allocator; not a measure of installed RAM.
+    pub addressable_bytes: usize,
+    /// Occupied/reserved/gap span; not a measure of live memory use.
+    pub occupied_bytes: usize,
+    /// Currently available conventional RAM represented by free frames.
     pub free_bytes: usize,
 }
 
 impl MemoryStats {
-    /// Get memory usage as a percentage
-    pub fn usage_percent(&self) -> f64 {
-        if self.total_frames == 0 {
+    /// Return the percentage of the tracked address span that is occupied or reserved.
+    ///
+    /// This is not an OS workload memory-usage percentage because reserved regions
+    /// and physical address holes count as occupied.
+    pub fn occupied_span_percent(&self) -> f64 {
+        if self.addressable_frames == 0 {
             0.0
         } else {
-            (self.allocated_frames as f64 / self.total_frames as f64) * 100.0
+            (self.occupied_frames as f64 / self.addressable_frames as f64) * 100.0
         }
     }
 }
