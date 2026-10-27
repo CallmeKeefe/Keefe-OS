@@ -9,7 +9,6 @@
  //! Do not use these outputs to make security decisions until the feature data,
  //! model, calibration, and enforcement path have been independently validated.
 
-#![no_std]
 
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use alloc::vec::Vec;
