@@ -57,6 +57,15 @@ jobs:
       - name: Run host-side kernel unit tests
         run: cargo test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
 
+      - name: Clippy boot protocol
+        run: cargo clippy --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
+
+      - name: Clippy kernel library
+        run: cargo clippy --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
+
+      - name: Clippy host build helper
+        run: cargo clippy --locked --package xtask --target x86_64-unknown-linux-gnu
+
       - name: Build kernel ELF
         run: cargo build --locked --package keefeos-kernel --target x86_64-unknown-none
 
