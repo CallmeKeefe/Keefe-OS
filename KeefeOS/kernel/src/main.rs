@@ -11,7 +11,8 @@
 //! 3. Initialize GDT/TSS and the CPU exception table.
 //! 4. Emit a serial-visible milestone and enter the idle halt loop.
 //!
-//! The current bootloader deliberately does not yet hand off the ELF kernel.
+//! The current loader passes the validated BootInfo handoff and transfers control
+//! to this entry point. The tested early-boot path remains experimental.
 
 #![no_std]
 #![no_main]
@@ -41,14 +42,8 @@ pub extern "sysv64" fn kernel_start(boot_info_ptr: u64) -> ! {
     println!("========================================\n");
     println!("Validating KeefeOS BootInfo handoff...");
 
-    let info_size = core::mem::size_of::<keefeos_kernel::bootinfo::BootInfo>() as u64;
-    let info_align = core::mem::align_of::<keefeos_kernel::bootinfo::BootInfo>() as u64;
-    if boot_info_ptr < 0x1000
-        || boot_info_ptr >= 0x4000_0000
-        || boot_info_ptr % info_align != 0
-        || boot_info_ptr.checked_add(info_size).is_none()
-    {
-        println!("Invalid, out-of-contract, or misaligned BootInfo pointer");
+    if !keefeos_kernel::bootinfo::is_valid_boot_info_pointer(boot_info_ptr) {
+        println!("Invalid, out-of-contract, misaligned, or truncated BootInfo pointer");
         halt_forever();
     }
 
