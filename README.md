@@ -91,6 +91,16 @@ KeefeOS is not a security boundary. Secure-boot signature verification, trusted 
 
 Read [SECURITY.md](SECURITY.md), [the security status](docs/audit/SECURITY_STATUS.md), and [the initial codebase audit](docs/audit/INITIAL_CODEBASE_AUDIT.md).
 
-## Contributing
+## Community and contribution
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md). Prioritize boot correctness, memory safety, regression tests, and evidence-backed implementation claims over speculative feature claims.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — development workflow, safety expectations, testing, and pull-request checklist.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — community behavior and reporting.
+- [CONTRIBUTORS.md](CONTRIBUTORS.md) — contributor recognition policy.
+- [SUPPORT.md](SUPPORT.md) — where to ask for help and what evidence to include.
+- [SECURITY.md](SECURITY.md) — responsible vulnerability reporting.
+
+Prioritize boot correctness, memory safety, regression tests, and evidence-backed implementation claims over speculative feature claims. Use the issue templates to report reproducible bugs or propose scoped improvements.
+
+## License and copyright
+
+KeefeOS is dual-licensed under **MIT OR Apache-2.0**, matching the Rust workspace metadata. You may choose either license; see [LICENSE](LICENSE), [LICENSE-MIT](LICENSE-MIT), and [LICENSE-APACHE](LICENSE-APACHE). Third-party components may have separate terms. Contributors retain their own copyright in their contributions; do not submit code or assets unless you have the right to license them under the project's stated terms.
