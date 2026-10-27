@@ -6,9 +6,9 @@
 
 ## Latest verified milestone
 
-**PASS:** [GitHub Actions run 40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679), commit `df97691cdecd26ff3a099b981b542817088683b1`.
+**Latest passing audit-branch CI:** [run 40602581622](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40602581622), commit `67d692063c37c975e3799c55a8e1538d36058b04` (PR #27; not yet merged at the time of this evidence).
 
-The run passed 22 boot-protocol/ELF tests, 31 kernel unit tests, the host helper check, kernel and UEFI-loader builds, image packaging, and a QEMU/OVMF boot matrix at **256 MiB, 512 MiB, and 1 GiB RAM**. In every profile, the firmware rendered the UEFI GOP splash before ExitBootServices and the kernel emitted `KEEFEOS-KERNEL-BOOT-OK`.
+This run passed the boot-protocol/ELF tests, kernel unit tests, host helper check, kernel and UEFI-loader builds, image packaging, and the QEMU/OVMF boot matrix at **256 MiB, 512 MiB, and 1 GiB RAM**. It includes the checked-address conversion and physical frame allocator regression tests. In every profile, the firmware rendered the UEFI GOP splash before ExitBootServices and the kernel emitted `KEEFEOS-KERNEL-BOOT-OK`.
 
 Representative serial output:
 
