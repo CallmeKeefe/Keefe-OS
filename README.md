@@ -50,12 +50,15 @@ Check [GitHub Actions](https://github.com/CallmeKeefe/Keefe-OS/actions) for the 
 - `KeefeOS/bootloader` — UEFI loader and firmware-rendered boot splash.
 - `KeefeOS/kernel` — x86-64 kernel, memory management, interrupt setup, and experimental modules.
 - `KeefeOS/xtask` — host build, FAT image packaging, and QEMU helper.
+- `docs/BUILD_AND_BOOT_GUIDE.md` — step-by-step host setup, build, test, and QEMU boot guide; explicitly not a physical installer.
 - `docs/COMPATIBILITY.md` — current hardware/platform compatibility matrix.
 - `docs/audit/OS_STATUS.md` — latest tested state and remaining risks.
 - `docs/audit/SECURITY_STATUS.md` and `SECURITY.md` — security limitations and reporting policy.
 - `docs/QWEN_CODER_PROMPT.md` — implementation handoff for Qwen Coder.
 
 ## Build and test (Linux / WSL2)
+
+For the complete steps, supported-host notes, troubleshooting, and safety limits, follow the [Build and Boot Guide](docs/BUILD_AND_BOOT_GUIDE.md).
 
 Install the nightly toolchain and targets:
 
