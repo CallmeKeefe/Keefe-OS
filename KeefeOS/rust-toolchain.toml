@@ -1,5 +1,5 @@
 [toolchain]
-# Pin the exact nightly that passed the repository's current CI baseline.
+# Pin the intended nightly for reproducibility; the exact pin must be revalidated in CI.
 channel = "nightly-2026-10-27"
 components = ["rust-src", "llvm-tools", "rustfmt", "clippy"]
 targets = ["x86_64-unknown-none", "x86_64-unknown-uefi"]
