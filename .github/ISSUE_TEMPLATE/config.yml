@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability reporting
+    url: https://github.com/CallmeKeefe/Keefe-OS/blob/main/SECURITY.md
+    about: Read the private disclosure guidance before sharing security-sensitive details.
+  - name: Build and boot guide
+    url: https://github.com/CallmeKeefe/Keefe-OS/blob/main/docs/BUILD_AND_BOOT_GUIDE.md
+    about: Check supported hosts, commands, troubleshooting, and hardware limitations.
