@@ -247,6 +247,7 @@ impl PhysicalFrameAllocator {
     /// longer in use, and has no outstanding references or mappings. The
     /// allocator can enforce pool membership, but it cannot prove those
     /// ownership/lifetime conditions.
+    pub unsafe fn deallocate(&mut self, phys_addr: usize) {
         if phys_addr % FRAME_SIZE != 0 {
             log::error!("Attempted to deallocate unaligned physical address {:#x}", phys_addr);
             return;
@@ -259,6 +260,14 @@ impl PhysicalFrameAllocator {
             return;
         }
         
+        if !Self::get_bit(&self.allocatable, frame_idx) {
+            log::error!(
+                "Refusing to deallocate frame {:#x} outside the usable allocation pool",
+                phys_addr
+            );
+            return;
+        }
+
         if !Self::get_bit(&self.bitmap, frame_idx) {
             log::warn!("Double-free detected for frame {}", frame_idx);
             return;
