@@ -313,8 +313,16 @@ impl PhysicalFrameAllocator {
             log::error!("Ignoring overflowing usable memory range");
             return;
         };
-        let end_frame = end_addr.saturating_add(FRAME_SIZE - 1) / FRAME_SIZE;
-        for frame_idx in (start / FRAME_SIZE).min(total_frames)..end_frame.min(total_frames) {
+        // Free only frames wholly contained within the declared usable range.
+        // Rounding the start down or end up here could expose a partially
+        // covered frame if a malformed/unexpected descriptor reaches this helper.
+        let Some(start_rounded) = start.checked_add(FRAME_SIZE - 1) else {
+            log::error!("Ignoring unrepresentable usable memory start");
+            return;
+        };
+        let start_frame = start_rounded / FRAME_SIZE;
+        let end_frame = end_addr / FRAME_SIZE; // exclusive; round end down
+        for frame_idx in start_frame.min(total_frames)..end_frame.min(total_frames) {
             Self::set_bit(bitmap, frame_idx, false);
         }
     }
@@ -391,6 +399,18 @@ mod tests {
         assert!(alloc.is_allocated(0x200000 / FRAME_SIZE)); // reserved descriptor
         assert!(!alloc.is_allocated(0x103000 / FRAME_SIZE)); // conventional memory
         assert!(!alloc.is_allocated(0x204000 / FRAME_SIZE)); // later conventional range
+    }
+
+    #[test]
+    fn unaligned_usable_ranges_only_free_wholly_contained_frames() {
+        // The first page is missing its first byte; the final page ends
+        // exactly at the descriptor end and is not included as a complete page.
+        let map = [region(UEFIMemoryType::CONVENTIONAL, 0x10_0001, 0x2ffe)];
+        let alloc = PhysicalFrameAllocator::new(&map, 0x40_0000, 0x40_1000);
+
+        assert!(alloc.is_allocated(0x10_0000 / FRAME_SIZE));
+        assert!(!alloc.is_allocated(0x10_1000 / FRAME_SIZE));
+        assert!(alloc.is_allocated(0x10_2000 / FRAME_SIZE));
     }
 
     #[test]
