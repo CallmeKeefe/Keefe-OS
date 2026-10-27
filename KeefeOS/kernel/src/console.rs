@@ -622,11 +622,14 @@ pub fn _print(args: fmt::Arguments) {
     {
         let mut serial = SERIAL_WRITER.lock();
         if let Some(ref mut writer) = *serial {
-            writer.write_fmt(args).unwrap();
+            // Console output is best-effort. Never panic while reporting another
+            // failure, which could recurse through the panic handler.
+            let _ = writer.write_fmt(args);
         }
     }
     if let Some(ref mut writer) = *FRAMEBUFFER_WRITER.lock() {
-        writer.write_fmt(args).unwrap();
+        // Keep formatting/output failures from recursively panicking.
+        let _ = writer.write_fmt(args);
     }
 }
 
