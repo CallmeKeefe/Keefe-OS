@@ -11,7 +11,6 @@
 
 
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use alloc::vec::Vec;
 
 static DETECTOR_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static ANOMALIES_DETECTED: AtomicU64 = AtomicU64::new(0);
