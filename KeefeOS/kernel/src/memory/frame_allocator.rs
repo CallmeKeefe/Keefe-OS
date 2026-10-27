@@ -98,10 +98,19 @@ impl PhysicalFrameAllocator {
             (total_frames * FRAME_SIZE) as f64 / (1024.0 * 1024.0 * 1024.0)
         );
 
-        // Clear bits only for explicitly usable firmware ranges.
+        // First make only explicitly usable conventional memory available.
         for region in memory_map {
             if region.is_usable() {
                 Self::mark_region_free(&mut bitmap, region.phys_start, region.size, total_frames);
+            }
+        }
+
+        // Reserved/non-usable descriptors always win if malformed or overlapping
+        // descriptors are supplied. Never let a usable range expose a page that
+        // any firmware descriptor says is reserved or device memory.
+        for region in memory_map {
+            if !region.is_usable() {
+                Self::mark_region_allocated(&mut bitmap, region.phys_start, region.size, total_frames);
             }
         }
 
@@ -134,7 +143,8 @@ impl PhysicalFrameAllocator {
     /// 3. Set the bit and return the frame address
     pub fn allocate(&mut self) -> Option<usize> {
         // Search for a free frame (bit = 0)
-        for (word_idx, word) in self.bitmap.iter_mut().enumerate() {
+        let words_to_scan = self.total_frames.saturating_add(63) / 64;
+        for (word_idx, word) in self.bitmap.iter_mut().take(words_to_scan).enumerate() {
             if *word != u64::MAX {
                 // This word has at least one free bit
                 let free_bit = word.trailing_ones();
@@ -411,6 +421,19 @@ mod tests {
         assert!(alloc.is_allocated(0x10_0000 / FRAME_SIZE));
         assert!(!alloc.is_allocated(0x10_1000 / FRAME_SIZE));
         assert!(alloc.is_allocated(0x10_2000 / FRAME_SIZE));
+    }
+
+    #[test]
+    fn reserved_descriptor_wins_when_memory_ranges_overlap() {
+        let map = [
+            region(UEFIMemoryType::CONVENTIONAL, 0x10_0000, 0x4000),
+            region(UEFIMemoryType::RESERVED, 0x10_1000, 0x1000),
+        ];
+        let alloc = PhysicalFrameAllocator::new(&map, 0x40_0000, 0x40_1000);
+
+        assert!(!alloc.is_allocated(0x10_0000 / FRAME_SIZE));
+        assert!(alloc.is_allocated(0x10_1000 / FRAME_SIZE));
+        assert!(!alloc.is_allocated(0x10_2000 / FRAME_SIZE));
     }
 
     #[test]
