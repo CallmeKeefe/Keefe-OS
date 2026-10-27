@@ -237,8 +237,41 @@ impl UEFIMemoryRegion {
         self.ty == UEFIMemoryType::CONVENTIONAL
     }
     
-    /// Get the end address of this region
-    pub fn end(&self) -> usize {
-        self.phys_start + self.size
+    /// Return the exclusive end address of this region, or `None` on overflow.
+    ///
+    /// This computes metadata only; callers must still validate that the region
+    /// came from a trusted, structurally validated firmware memory map.
+    pub fn end(&self) -> Option<usize> {
+        self.phys_start.checked_add(self.size)
+    }
+}
+
+#[cfg(test)]
+mod memory_region_tests {
+    use super::{UEFIMemoryRegion, UEFIMemoryType};
+
+    #[test]
+    fn checked_end_returns_the_exclusive_address() {
+        let region = UEFIMemoryRegion {
+            ty: UEFIMemoryType::CONVENTIONAL,
+            phys_start: 0x1000,
+            size: 0x2000,
+        };
+        assert_eq!(region.end(), Some(0x3000));
+    }
+
+    #[test]
+    fn checked_end_rejects_overflow() {
+        let region = UEFIMemoryRegion {
+            ty: UEFIMemoryType::CONVENTIONAL,
+            phys_start: usize::MAX - 0xfff,
+            size: 0x2000,
+        };
+        assert_eq!(region.end(), None);
+    }
+
+    #[test]
+    fn unknown_uefi_memory_types_are_reserved_by_default() {
+        assert_eq!(UEFIMemoryType::from(u32::MAX), UEFIMemoryType::RESERVED);
     }
 }
