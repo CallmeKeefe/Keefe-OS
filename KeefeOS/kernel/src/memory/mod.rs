@@ -122,7 +122,10 @@ pub fn allocate_frame() -> Option<x86_64::PhysAddr> {
 pub unsafe fn deallocate_frame(addr: x86_64::PhysAddr) {
     let mut allocator = get_frame_allocator();
     if let Some(ref mut alloc) = *allocator {
-        alloc.deallocate(addr.as_u64() as usize);
+        // SAFETY: this wrapper inherits the caller's contract that the frame was
+        // allocated by KeefeOS and is no longer referenced or mapped. The
+        // allocator additionally rejects frames outside usable physical memory.
+        unsafe { alloc.deallocate(addr.as_u64() as usize) };
     }
 }
 
