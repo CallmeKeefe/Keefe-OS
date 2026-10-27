@@ -420,7 +420,8 @@ mod tests {
 
         assert!(alloc.is_allocated(0x10_0000 / FRAME_SIZE));
         assert!(!alloc.is_allocated(0x10_1000 / FRAME_SIZE));
-        assert!(alloc.is_allocated(0x10_2000 / FRAME_SIZE));
+        assert!(!alloc.is_allocated(0x10_2000 / FRAME_SIZE));
+        assert!(alloc.is_allocated(0x10_3000 / FRAME_SIZE));
     }
 
     #[test]
