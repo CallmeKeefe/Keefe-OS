@@ -60,27 +60,20 @@ pub extern "sysv64" fn kernel_start(boot_info_ptr: u64) -> ! {
         halt_forever();
     }
 
-    // Use GOP only when the loader marked its complete memory range reserved.
-    // Serial output remains the fallback if firmware exposes no safe direct buffer.
-    if boot_info.flags & keefeos_kernel::bootinfo::BOOT_INFO_FLAG_GOP_RESERVED != 0 {
-        if console::init_framebuffer(boot_info) {
-            println!(
-                "GOP framebuffer enabled: {}x{}, stride {}",
-                boot_info.fb_horiz_res,
-                boot_info.fb_vert_res,
-                boot_info.fb_pixels_per_scan_line
-            );
-        } else {
-            println!("GOP metadata passed BootInfo checks but the kernel renderer rejected it; serial remains active");
-        }
-    } else if boot_info.flags & keefeos_kernel::bootinfo::BOOT_INFO_FLAG_GOP_FOUND == 0 {
+    // The UEFI bootloader renders the startup splash through firmware GOP BLT.
+    // Do not write to the physical framebuffer directly here: a "reserved" UEFI
+    // memory descriptor does not prove that the current page tables map the range
+    // or that its MMIO cache attributes are correct.
+    if boot_info.flags & keefeos_kernel::bootinfo::BOOT_INFO_FLAG_GOP_FOUND == 0 {
         println!("No UEFI GOP protocol found; serial diagnostics remain active");
     } else if boot_info.flags & keefeos_kernel::bootinfo::BOOT_INFO_FLAG_GOP_CONVENTIONAL_OVERLAP != 0 {
-        println!("GOP range overlaps conventional RAM; unsafe framebuffer writes refused");
+        println!("GOP range overlaps conventional RAM; direct kernel writes refused");
     } else if boot_info.flags & keefeos_kernel::bootinfo::BOOT_INFO_FLAG_GOP_UNMAPPED != 0 {
-        println!("GOP range has a gap in the final memory map; unsafe framebuffer writes refused");
+        println!("GOP range has a gap in the final memory map; direct kernel writes refused");
+    } else if boot_info.flags & keefeos_kernel::bootinfo::BOOT_INFO_FLAG_GOP_RESERVED != 0 {
+        println!("GOP range is reserved in the firmware map, but direct kernel framebuffer writes remain disabled until page-table and MMIO attributes are verified");
     } else {
-        println!("GOP framebuffer reservation could not be proven; serial-only output");
+        println!("GOP framebuffer safety could not be proven; serial-only output");
     }
 
     let kernel_start = boot_info.kernel_start as usize;
