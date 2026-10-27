@@ -133,7 +133,7 @@ pub fn process_command(command: &str) -> AgentResponse {
     match classify_command(command) {
         CommandType::SystemQuery => AgentResponse::new(
             true,
-            "KeefeOS status: experimental x86-64 kernel prototype. Boot is not yet verified; paging, process isolation, drivers, and runtime security monitoring are incomplete.",
+            "KeefeOS status: experimental x86-64 kernel prototype. Early boot has passed the configured QEMU/OVMF RAM matrix; this does not establish a complete OS. Paging safety, process isolation, general drivers, and runtime security monitoring are incomplete.",
         )
         .with_confidence(1.0)
         .suggest("show build status")
