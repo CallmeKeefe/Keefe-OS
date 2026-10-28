@@ -27,12 +27,12 @@
 //! and reaching its early idle path. CI must observe it over QEMU serial to
 //! establish a boot milestone; compilation alone does not establish bootability.
 
-/// Magic value ("KIB\x01") identifying a valid boot info block.
+/// Magic value ("KIB\x02") identifying the current boot info ABI.
 pub const BOOT_INFO_MAGIC: u32 = 0x_4B49_4202;
 /// Version of this handoff ABI.
 pub const BOOT_INFO_VERSION: u32 = 2;
 
-/// Size of one normalized memory descriptor in bytes (40 for ABI v1).
+/// Size of one normalized memory descriptor in bytes for the current ABI.
 pub const MEMORY_DESCRIPTOR_SIZE: usize = core::mem::size_of::<MemoryDescriptor>();
 
 /// Maximum number of memory descriptors carried through the handoff.

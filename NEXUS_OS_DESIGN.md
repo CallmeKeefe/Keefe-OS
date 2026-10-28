@@ -1,5 +1,9 @@
 # Nexus OS: Unified Cross-Device Operating System Architecture
 
+> **Implementation status — proposal only (checked 2026-10-28):** This document describes a proposed end-state architecture, not the implementation currently present in the repository. KeefeOS currently has an experimental x86-64 kernel/UEFI loader and a QEMU + OVMF early-boot test path. It does not yet have a complete user-space OS, general driver stack, secure cross-device transport, mobile hardware support, or a production AI-agent runtime. Read [the current architecture guide](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md), and [compatibility matrix](docs/COMPATIBILITY.md) for verified scope.
+
+
+
 ## 1. Executive Summary
 **Nexus OS** is a distributed, capability-based microkernel operating system designed from the ground up for heterogeneity. It treats "devices" not as isolated silos but as interchangeable resource pools within a single logical user session.
 

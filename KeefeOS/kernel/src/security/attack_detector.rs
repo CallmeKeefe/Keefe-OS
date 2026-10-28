@@ -4,7 +4,6 @@
 //! network packets, or execution traces and must not be treated as a security
 //! monitoring or attack-blocking control.
 
-#![no_std]
 
 extern crate alloc;
 

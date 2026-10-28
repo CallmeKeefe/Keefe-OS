@@ -1,25 +1,16 @@
-//! AI/ML Subsystem for KeefeOS
+//! Experimental deterministic AI/ML-style heuristics for KeefeOS.
 //!
-//! This module provides intelligent operating system capabilities including:
-//! - Machine learning-based process scheduling
-//! - Predictive memory management
-//! - Anomaly detection for security
-//! - Self-optimizing performance tuning
-//! - Neural network inference engine (embedded)
+//! These modules are prototypes for host-testable heuristics. They are not a
+//! trained or remotely hosted model, do not run a general-purpose agent, and
+//! do not enforce scheduling, paging, or security policy. Do not use their
+//! outputs as a security decision or claim that they predict live workloads.
 //!
-//! # Architecture
-//!
-//! The AI subsystem runs as a privileged kernel service with the following components:
-//! 1. **Scheduler ML**: Predicts process behavior for optimal CPU allocation
-//! 2. **Memory Predictor**: Anticipates page faults and pre-loads data
-//! 3. **Security AI**: Detects anomalous patterns indicating attacks
-//! 4. **Performance Optimizer**: Continuously tunes kernel parameters
+//! General LLM inference, provider/API access, MCP clients, and agent tools
+//! belong in a future isolated user-space service after process and IPC
+//! boundaries exist.
 
-#![no_std]
 
 use core::sync::atomic::{AtomicU64, Ordering};
-use alloc::vec::Vec;
-use alloc::boxed::Box;
 
 pub mod scheduler;
 pub mod memory_predictor;

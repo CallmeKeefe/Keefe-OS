@@ -1,18 +1,21 @@
 # KeefeOS current engineering status
 
-**Evidence refresh:** 2026-10-25  
-**Current tested commit:** `df97691cdecd26ff3a099b981b542817088683b1`  
-**CI run:** [40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679)
+**Evidence refresh:** 2026-10-28  
+**Latest passing audit-branch commit:** `adc98ccdd429cb787a7676133fdb95a1540a375c` (PR #27, not merged)  
+**CI run:** [40606689369](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40606689369)
 
 ## Verified in CI
 
 | Check | Result | Evidence |
 |---|---|---|
-| Host `xtask` check | PASS | Run 40201976679 |
-| Boot protocol / ELF parser tests | PASS — 22 tests | Run 40201976679 |
-| Host-side kernel unit tests | PASS — 31 tests | Run 40201976679 |
-| `x86_64-unknown-none` kernel build | PASS | Run 40201976679 |
-| `x86_64-unknown-uefi` loader build | PASS | Run 40201976679 |
+| Host `xtask` check | PASS | Run 40606689369 |
+| Boot protocol / ELF parser tests | PASS — 22 tests | Run 40606689369 |
+| Host-side kernel unit tests | PASS — 47 tests | Run 40606689369 |
+| `x86_64-unknown-none` kernel build | PASS | Run 40606689369 |
+| `x86_64-unknown-uefi` loader build | PASS | Run 40606689369 |
+| RustSec `cargo-audit` on Cargo.lock | PASS — 58 locked crate dependencies scanned; no advisory findings reported by the step | Run 40606689369 |
+| Clippy: boot protocol, kernel library, host helper | PASS (warnings remain) | Run 40606689369 |
+| Optional legacy-VGA feature compilation | PASS; feature remains disabled by default | Run 40606689369 |
 | FAT disk image assembly | PASS | Artifact uploaded by workflow |
 | QEMU/OVMF early boot + splash | PASS at 256 MiB, 512 MiB, and 1 GiB | The splash and kernel marker are required in each serial log |
 

@@ -4,9 +4,9 @@ KeefeOS is an experimental x86-64 bare-metal kernel and UEFI loader. Early boot 
 
 ## Latest verified status
 
-[GitHub Actions run 40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679), commit `df97691cdecd26ff3a099b981b542817088683b1`, passed 22 boot-protocol tests, 31 kernel unit tests, the host helper check, both builds, image packaging, and QEMU/OVMF boot/splash tests at 256 MiB, 512 MiB, and 1 GiB RAM. The kernel emitted `KEEFEOS-KERNEL-BOOT-OK` in all three profiles.
+[GitHub Actions run 40606689369](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40606689369), audit-branch commit `adc98ccdd429cb787a7676133fdb95a1540a375c` (PR #27; not merged at the time of this evidence), passed 22 boot-protocol tests and 47 kernel unit tests, the host helper check, RustSec cargo-audit, Clippy checks, optional legacy-VGA compilation, both target builds, image packaging, and QEMU/OVMF boot/splash tests at 256 MiB, 512 MiB, and 1 GiB RAM. The kernel emitted `KEEFEOS-KERNEL-BOOT-OK` in all three profiles.
 
-The loader draws a UEFI GOP splash using firmware BLT before ExitBootServices. The persistent kernel framebuffer console remains fail-closed because the final memory map has a gap across the GOP range. The kernel is linked for a fixed **32–64 MiB x86-64 load window**; relocation is not implemented.
+The loader draws a UEFI GOP splash using firmware BLT before ExitBootServices. Direct kernel framebuffer writes remain disabled until active page-table mapping and MMIO cache attributes are proven; a reserved UEFI memory descriptor alone is insufficient. The kernel is linked for a fixed **32–64 MiB x86-64 load window**; relocation is not implemented.
 
 ## Workspace packages
 
@@ -20,12 +20,12 @@ The loader draws a UEFI GOP splash using firmware BLT before ExitBootServices. T
 Use Rust nightly with `rust-src`, `llvm-tools`, `rustfmt`, `clippy`, `x86_64-unknown-none`, and `x86_64-unknown-uefi`. Linux/WSL2 with QEMU and OVMF is the current development path.
 
 ```sh
-cargo +nightly fmt --all -- --check
-cargo +nightly test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
-cargo +nightly test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
-cargo +nightly build --locked --package keefeos-kernel --target x86_64-unknown-none
-cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
-cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
+cargo fmt --all -- --check
+cargo test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
+cargo test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
+cargo build --locked --package keefeos-kernel --target x86_64-unknown-none
+cargo build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
+cargo run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 ```
 
 CI performs the actual QEMU/OVMF boot matrix. A successful build or image generation is not by itself evidence of a boot.

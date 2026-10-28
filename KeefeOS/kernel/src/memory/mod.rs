@@ -11,11 +11,15 @@
 //!
 //! We chose a **Bitmap Allocator** for the following reasons:
 //!
-//! 1. **O(1) Allocation/Deallocation**: Finding and toggling a bit is constant time
-//! 2. **Cache Efficiency**: The bitmap is compact and fits in cache
-//! 3. **Fragmentation Tracking**: Easy to detect and handle fragmentation
-//! 4. **NUMA Ready**: Can be extended with per-NUMA-node bitmaps
-//! 5. **Security**: Clear visualization of all allocated frames
+//! 1. **Compact tracking**: One bit per 4 KiB frame; bitmap size is proportional
+//!    to the managed physical-address span, capped at 64 GiB.
+//! 2. **Bounded bit updates**: Marking one frame allocated or free is O(1).
+//! 3. **First-fit scanning**: Single-frame allocation scans bitmap words; it is
+//!    O(number of tracked words), not O(1).
+//! 4. **Contiguous allocation**: The current implementation performs a linear
+//!    first-fit scan and is intended for early bring-up, not production workloads.
+//! 5. **Future work**: Per-CPU or NUMA-aware allocators require a verified SMP
+//!    model; the current global spinlock is not a NUMA/multi-core design.
 //!
 //! A stack allocator would be faster for LIFO patterns but suffers from:
 //! - O(n) worst-case for finding free frames
@@ -46,21 +50,20 @@ pub mod paging {
     }
 }
 
-use self::frame_allocator::PhysicalFrameAllocator;
-use core::sync::atomic::{AtomicUsize, Ordering};
+use self::frame_allocator::{PhysicalFrameAllocator, FRAME_SIZE};
+use core::sync::atomic::{AtomicBool, Ordering};
 use spin::Mutex;
 
 /// Global physical frame allocator
 /// This is initialized once during boot and used throughout the kernel lifetime
 static FRAME_ALLOCATOR: Mutex<Option<PhysicalFrameAllocator>> = Mutex::new(None);
 
-/// Total number of physical frames managed by the allocator
-static TOTAL_FRAMES: AtomicUsize = AtomicUsize::new(0);
+/// Prevent a second initialization from making live physical frames allocatable again.
+static MEMORY_INIT_STARTED: AtomicBool = AtomicBool::new(false);
 
-/// Number of currently allocated frames
-static ALLOCATED_FRAMES: AtomicUsize = AtomicUsize::new(0);
-
-/// Initialize the memory management subsystem
+/// Initialize the memory management subsystem once during early boot.
+///
+/// Re-initialization is refused so existing frame ownership cannot be reset.
 ///
 /// # Arguments
 ///
@@ -68,18 +71,23 @@ static ALLOCATED_FRAMES: AtomicUsize = AtomicUsize::new(0);
 /// * `kernel_start` - Physical start address of the kernel
 /// * `kernel_end` - Physical end address of the kernel
 ///
-/// # Safety
-///
-/// This function must be called exactly once during system initialization.
-/// Calling it multiple times will cause memory corruption.
+/// Initializes memory state once. A duplicate call is rejected because replacing
+/// the allocator could make still-live frames available for allocation again.
 pub fn init(memory_map: &[UEFIMemoryRegion], kernel_start: usize, kernel_end: usize) {
+    if MEMORY_INIT_STARTED
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        log::error!("Memory initialization requested more than once; ignoring duplicate call");
+        return;
+    }
     log::info!("Initializing memory management subsystem...");
     
     // Calculate total usable memory
     let mut total_usable_bytes = 0usize;
     for region in memory_map {
         if region.ty == UEFIMemoryType::CONVENTIONAL {
-            total_usable_bytes += region.size;
+            total_usable_bytes = total_usable_bytes.saturating_add(region.size);
         }
     }
     
@@ -87,10 +95,13 @@ pub fn init(memory_map: &[UEFIMemoryRegion], kernel_start: usize, kernel_end: us
     
     // Initialize the frame allocator
     let mut allocator = FRAME_ALLOCATOR.lock();
+    if allocator.is_some() {
+        log::error!("Memory subsystem is already initialized; refusing to reset frame ownership");
+        return;
+    }
     *allocator = Some(PhysicalFrameAllocator::new(memory_map, kernel_start, kernel_end));
     
     if let Some(ref alloc) = *allocator {
-        TOTAL_FRAMES.store(alloc.total_frames(), Ordering::Relaxed);
         log::info!("Frame allocator initialized: {} frames ({:.2} GB)", 
                    alloc.total_frames(),
                    (alloc.total_frames() * 4096) as f64 / (1024.0 * 1024.0 * 1024.0));
@@ -130,7 +141,10 @@ pub fn allocate_frame() -> Option<x86_64::PhysAddr> {
 pub unsafe fn deallocate_frame(addr: x86_64::PhysAddr) {
     let mut allocator = get_frame_allocator();
     if let Some(ref mut alloc) = *allocator {
-        alloc.deallocate(addr.as_u64() as usize);
+        // SAFETY: this wrapper inherits the caller's contract that the frame was
+        // allocated by KeefeOS and is no longer referenced or mapped. The
+        // allocator additionally rejects frames outside usable physical memory.
+        unsafe { alloc.deallocate(addr.as_u64() as usize) };
     }
 }
 
@@ -139,42 +153,58 @@ pub fn get_memory_stats() -> MemoryStats {
     let allocator = get_frame_allocator();
     if let Some(ref alloc) = *allocator {
         MemoryStats {
-            total_frames: alloc.total_frames(),
-            allocated_frames: alloc.allocated_count(),
+            addressable_frames: alloc.total_frames(),
+            occupied_frames: alloc.allocated_count(),
             free_frames: alloc.free_count(),
-            total_bytes: alloc.total_frames() * 4096,
-            allocated_bytes: alloc.allocated_count() * 4096,
-            free_bytes: alloc.free_count() * 4096,
+            addressable_bytes: alloc.total_frames() * FRAME_SIZE,
+            occupied_bytes: alloc.allocated_count() * FRAME_SIZE,
+            free_bytes: alloc.free_count() * FRAME_SIZE,
         }
     } else {
         MemoryStats::default()
     }
 }
 
-/// Memory statistics structure
+/// Snapshot of the physical-frame allocator's counters.
+///
+/// These metrics distinguish the tracked physical address span from usable
+/// memory. The addressable span includes gaps and reserved firmware ranges;
+/// occupied frames include reserved/unavailable frames and are not equivalent
+/// to live allocations. Free frames are only complete pages backed by usable
+/// conventional memory descriptors.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MemoryStats {
-    pub total_frames: usize,
-    pub allocated_frames: usize,
+    /// Number of frame slots between physical address zero and the highest tracked range.
+    pub addressable_frames: usize,
+    /// Number of frame slots that are reserved, unavailable, or currently allocated.
+    pub occupied_frames: usize,
+    /// Number of currently available full conventional-memory frames.
     pub free_frames: usize,
-    pub total_bytes: usize,
-    pub allocated_bytes: usize,
+    /// Address span represented by the allocator; not a measure of installed RAM.
+    pub addressable_bytes: usize,
+    /// Occupied/reserved/gap span; not a measure of live memory use.
+    pub occupied_bytes: usize,
+    /// Currently available conventional RAM represented by free frames.
     pub free_bytes: usize,
 }
 
 impl MemoryStats {
-    /// Get memory usage as a percentage
-    pub fn usage_percent(&self) -> f64 {
-        if self.total_frames == 0 {
+    /// Return the percentage of the tracked address span that is occupied or reserved.
+    ///
+    /// This is not an OS workload memory-usage percentage because reserved regions
+    /// and physical address holes count as occupied.
+    pub fn occupied_span_percent(&self) -> f64 {
+        if self.addressable_frames == 0 {
             0.0
         } else {
-            (self.allocated_frames as f64 / self.total_frames as f64) * 100.0
+            (self.occupied_frames as f64 / self.addressable_frames as f64) * 100.0
         }
     }
 }
 
-/// UEFI Memory Region types
-/// Based on the UEFI specification
+/// UEFI memory types retain the specification's uppercase identifiers.
+/// Based on the UEFI specification.
+#[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum UEFIMemoryType {
@@ -232,8 +262,41 @@ impl UEFIMemoryRegion {
         self.ty == UEFIMemoryType::CONVENTIONAL
     }
     
-    /// Get the end address of this region
-    pub fn end(&self) -> usize {
-        self.phys_start + self.size
+    /// Return the exclusive end address of this region, or `None` on overflow.
+    ///
+    /// This computes metadata only; callers must still validate that the region
+    /// came from a trusted, structurally validated firmware memory map.
+    pub fn end(&self) -> Option<usize> {
+        self.phys_start.checked_add(self.size)
+    }
+}
+
+#[cfg(test)]
+mod memory_region_tests {
+    use super::{UEFIMemoryRegion, UEFIMemoryType};
+
+    #[test]
+    fn checked_end_returns_the_exclusive_address() {
+        let region = UEFIMemoryRegion {
+            ty: UEFIMemoryType::CONVENTIONAL,
+            phys_start: 0x1000,
+            size: 0x2000,
+        };
+        assert_eq!(region.end(), Some(0x3000));
+    }
+
+    #[test]
+    fn checked_end_rejects_overflow() {
+        let region = UEFIMemoryRegion {
+            ty: UEFIMemoryType::CONVENTIONAL,
+            phys_start: usize::MAX - 0xfff,
+            size: 0x2000,
+        };
+        assert_eq!(region.end(), None);
+    }
+
+    #[test]
+    fn unknown_uefi_memory_types_are_reserved_by_default() {
+        assert_eq!(UEFIMemoryType::from(u32::MAX), UEFIMemoryType::RESERVED);
     }
 }

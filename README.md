@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml/badge.svg?branch=main)](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml) ![Experimental](https://img.shields.io/badge/status-experimental-orange) ![Architecture x86-64](https://img.shields.io/badge/architecture-x86--64-blue) ![Security incomplete](https://img.shields.io/badge/security-incomplete-red)
 
-> **Experimental OS prototype.** Early boot is verified only under x86-64 QEMU + OVMF UEFI. Physical installation and production use are not supported. The kernel uses a fixed load window; the persistent kernel framebuffer console remains disabled unless firmware memory-map coverage can be proved.
+> **Experimental OS prototype.** Early boot is verified only under x86-64 QEMU + OVMF UEFI. Physical installation and production use are not supported. The kernel uses a fixed load window; the persistent kernel framebuffer console remains disabled until target-specific page-table mapping and MMIO cache attributes are proven; a reserved UEFI memory descriptor alone is insufficient.
 
 ## Latest verified milestone
 
-**PASS:** [GitHub Actions run 40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679), commit `df97691cdecd26ff3a099b981b542817088683b1`.
+**Latest full passing CI:** [run 40606689369](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40606689369), commit `adc98ccdd429cb787a7676133fdb95a1540a375c` (PR #27 remains open and unmerged).
 
-The run passed 22 boot-protocol/ELF tests, 31 kernel unit tests, the host helper check, kernel and UEFI-loader builds, image packaging, and a QEMU/OVMF boot matrix at **256 MiB, 512 MiB, and 1 GiB RAM**. In every profile, the firmware rendered the UEFI GOP splash before ExitBootServices and the kernel emitted `KEEFEOS-KERNEL-BOOT-OK`.
+The run passed 22 boot-protocol tests and 47 kernel unit tests, the host helper check, RustSec `cargo-audit` against the locked dependency set, Clippy for the boot protocol/kernel/helper, the optional legacy-VGA compile check, kernel and UEFI-loader builds, image packaging, and the QEMU/OVMF boot matrix at **256 MiB, 512 MiB, and 1 GiB RAM**. Each profile required the firmware-rendered GOP splash and `KEEFEOS-KERNEL-BOOT-OK`. Direct kernel framebuffer writes remain disabled until active mapping and MMIO cache attributes are proven.
 
 Representative serial output:
 
@@ -28,12 +28,12 @@ This verifies three QEMU RAM profiles using the same x86-64 QEMU/OVMF setup. It 
 | Area | Status |
 |---|---|
 | BootInfo ABI and bounded ELF64 parser | 22 protocol tests passed |
-| Kernel unit tests | 31 passed |
+| Kernel unit tests | 47 passed |
 | Kernel / UEFI loader builds | Passed in the cited CI run |
 | QEMU/OVMF early boot | Passed with 256 MiB, 512 MiB, and 1 GiB RAM |
 | UEFI visual boot splash | Passed using firmware GOP BLT before ExitBootServices |
 | Kernel load address | Fixed 32–64 MiB identity-mapped window; relocation is not implemented |
-| Direct kernel framebuffer console | Safely disabled: final UEFI map has a gap across the GOP range |
+| Direct kernel framebuffer console | **Disabled by design**: a reserved UEFI descriptor does not prove active virtual mapping or correct MMIO cache attributes; firmware draws the splash before `ExitBootServices`. |
 | Physical frame allocator | Regression tests exist; firmware-map and runtime stress coverage remain limited |
 | Paging / higher-half model | Experimental; full page-table lifecycle and isolation are not verified |
 | ACPI, PCI, storage, USB, network, input, and power management | No general driver stack |
@@ -63,7 +63,7 @@ For the complete steps, supported-host notes, troubleshooting, and safety limits
 Install the nightly toolchain and targets:
 
 ```sh
-rustup toolchain install nightly --component rust-src --component llvm-tools --component rustfmt --component clippy --target x86_64-unknown-none --target x86_64-unknown-uefi
+rustup toolchain install nightly-2026-10-27 --profile minimal --component rust-src --component llvm-tools --component rustfmt --component clippy --target x86_64-unknown-none --target x86_64-unknown-uefi
 sudo apt-get update
 sudo apt-get install -y qemu-system-x86 ovmf
 ```
@@ -72,13 +72,13 @@ From the workspace directory:
 
 ```sh
 cd KeefeOS
-cargo +nightly fmt --all -- --check
-cargo +nightly test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
-cargo +nightly test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
-cargo +nightly check --locked --package xtask --target x86_64-unknown-linux-gnu
-cargo +nightly build --locked --package keefeos-kernel --target x86_64-unknown-none
-cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
-cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
+cargo fmt --all -- --check
+cargo test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
+cargo test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
+cargo check --locked --package xtask --target x86_64-unknown-linux-gnu
+cargo build --locked --package keefeos-kernel --target x86_64-unknown-none
+cargo build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
+cargo run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 ```
 
 CI runs the full QEMU/OVMF matrix and requires both the firmware splash message and `KEEFEOS-KERNEL-BOOT-OK`. Image generation alone does not establish boot success.
@@ -90,6 +90,18 @@ The currently verified matrix is limited to x86-64 QEMU/OVMF at 256 MiB, 512 MiB
 KeefeOS is not a security boundary. Secure-boot signature verification, trusted randomness, authenticated encryption, real capability verification, runtime vulnerability scanning, and attack detection remain unimplemented. Their APIs fail closed or report incomplete status.
 
 Read [SECURITY.md](SECURITY.md), [the security status](docs/audit/SECURITY_STATUS.md), and [the initial codebase audit](docs/audit/INITIAL_CODEBASE_AUDIT.md).
+
+## Architecture and planned direction
+
+The current implementation is an experimental x86-64 kernel/UEFI boot path. The multi-device system and AI-agent experience are long-term goals, not working features yet.
+
+- [Architecture guide](docs/ARCHITECTURE.md) — current crates, trust boundaries, and target layering.
+- [Staged roadmap](docs/ROADMAP.md) — acceptance gates for kernel safety, user space, drivers, portability, and cross-device support.
+- [AI agent security model](docs/AI_AGENT_SECURITY_MODEL.md) — intended MCP/API/provider design, least-privilege tools, credential handling, and human approvals.
+
+**Design rule:** the LLM/agent runtime, API keys, MCP clients, and tool executors belong in isolated user space after process isolation and IPC enforcement exist. They must not run as privileged kernel code. Cross-device support must be proven separately for each architecture, firmware, and device configuration.
+
+The [NEXUS design](NEXUS_OS_DESIGN.md), [roadmap](NEXUS_OS_ROADMAP.md), and [integration proposal](NEXUS_OS_INTEGRATION.md) are aspirational documents; they are not implementation evidence.
 
 ## Community and contribution
 

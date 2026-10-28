@@ -4,7 +4,6 @@
 //! model, modify hardware page tables, or prove that a page fault was avoided.
 //! The APIs are retained for callers while real telemetry and paging are built.
 
-#![no_std]
 
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 

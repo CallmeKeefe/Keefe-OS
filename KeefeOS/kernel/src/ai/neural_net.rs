@@ -13,9 +13,7 @@
 //! This module uses interior mutability with proper synchronization to avoid
 //! data races. The global NN instance is initialized once and then read-only.
 
-#![no_std]
 
-use alloc::vec::Vec;
 use core::sync::atomic::{AtomicBool, Ordering};
 use spin::Mutex;
 

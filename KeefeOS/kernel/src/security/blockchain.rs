@@ -4,7 +4,6 @@
 //! security primitive. It is an in-memory development log only; it is not
 //! persistent, signed, tamper-resistant, or independently verified.
 
-#![no_std]
 
 extern crate alloc;
 

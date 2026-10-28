@@ -5,9 +5,9 @@ Canonical branch: main
 
 ## Current verified milestone
 
-At commit `df97691cdecd26ff3a099b981b542817088683b1`, [GitHub Actions run 40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679) passed 22 boot-protocol tests, 31 kernel unit tests, the host helper check, both builds, image packaging, and the QEMU/OVMF smoke-test matrix with 256 MiB, 512 MiB, and 1 GiB RAM. In all three, the serial output included the UEFI GOP splash message and `KEEFEOS-KERNEL-BOOT-OK`.
+At audit-branch commit `b55a9575690925a6ec2304b27a79df1b591b4b3d`, [GitHub Actions run 40605994765](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40605994765) passed 22 boot-protocol tests, 47 kernel unit tests, the host helper check, RustSec cargo-audit, Clippy checks, optional legacy-VGA compilation, both target builds, image packaging, and the QEMU/OVMF matrix at 256 MiB, 512 MiB, and 1 GiB RAM. PR #27 remains open and unmerged. In all three, the serial output included the UEFI GOP splash message and `KEEFEOS-KERNEL-BOOT-OK`.
 
-The UEFI splash renders readable pixel text using firmware GOP BLT before ExitBootServices. The direct kernel framebuffer console stays disabled because the final memory map has a gap over the GOP range at `0x80000000`. Do not weaken that protection or claim the kernel framebuffer works until a valid MMIO/page-table mapping is designed and tested.
+The UEFI splash renders readable pixel text using firmware GOP BLT before ExitBootServices. Direct kernel framebuffer writes remain disabled until a target-specific page-table mapping and correct MMIO cache attributes are proven. A reserved UEFI descriptor is not, by itself, proof of a safe virtual mapping.
 
 ## Mission
 

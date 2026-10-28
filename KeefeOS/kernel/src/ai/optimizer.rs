@@ -4,7 +4,6 @@
 //! apply scheduler, VM, storage, or power settings: those runtime interfaces
 //! are not implemented, and no trained machine-learning model is used here.
 
-#![no_std]
 
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};

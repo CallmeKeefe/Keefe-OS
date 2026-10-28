@@ -47,15 +47,40 @@ pub mod addresses {
     /// This places the kernel in the top 128 TB of virtual address space
     pub const KERNEL_OFFSET: usize = 0xFFFF800000000000;
     
-    /// Convert a physical address to a virtual address in kernel space
+    /// Calculate the higher-half virtual address for a physical address.
+    ///
+    /// This checks arithmetic overflow but does not prove that the virtual
+    /// address is mapped in the current page tables.
     #[inline]
-    pub const fn phys_to_virt(phys: usize) -> usize {
-        phys + KERNEL_OFFSET
+    pub const fn phys_to_virt(phys: usize) -> Option<usize> {
+        phys.checked_add(KERNEL_OFFSET)
     }
-    
-    /// Convert a virtual address in kernel space to a physical address
+
+    /// Calculate the physical offset for a higher-half kernel virtual address.
+    ///
+    /// Returns `None` for lower-half addresses instead of allowing subtraction
+    /// to wrap. This does not validate an actual page-table mapping.
     #[inline]
-    pub const fn virt_to_phys(virt: usize) -> usize {
-        virt - KERNEL_OFFSET
+    pub const fn virt_to_phys(virt: usize) -> Option<usize> {
+        virt.checked_sub(KERNEL_OFFSET)
+    }
+}
+
+
+#[cfg(test)]
+mod address_conversion_tests {
+    use super::addresses::{phys_to_virt, virt_to_phys, KERNEL_OFFSET};
+
+    #[test]
+    fn higher_half_conversion_round_trips() {
+        let virtual_address = phys_to_virt(0x10_0000).expect("no overflow expected");
+        assert_eq!(virtual_address, KERNEL_OFFSET + 0x10_0000);
+        assert_eq!(virt_to_phys(virtual_address), Some(0x10_0000));
+    }
+
+    #[test]
+    fn rejects_lower_half_address_and_addition_overflow() {
+        assert_eq!(virt_to_phys(0x1000), None);
+        assert_eq!(phys_to_virt(usize::MAX), None);
     }
 }

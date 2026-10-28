@@ -31,7 +31,7 @@ Install Rustup if it is not already installed. Follow the official instructions 
 Install the nightly compiler, required components, and bare-metal targets:
 
 ```sh
-rustup toolchain install nightly \
+rustup toolchain install nightly-2026-10-27 --profile minimal \
   --component rust-src \
   --component llvm-tools \
   --component rustfmt \
@@ -44,7 +44,7 @@ Confirm the tools are available:
 
 ```sh
 rustup toolchain list
-cargo +nightly --version
+cargo --version
 qemu-system-x86_64 --version
 ```
 
@@ -63,10 +63,10 @@ For reproducible checks, start from a commit whose CI result you intend to repro
 Run these commands from the `KeefeOS/` workspace directory:
 
 ```sh
-cargo +nightly fmt --all -- --check
-cargo +nightly test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
-cargo +nightly test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
-cargo +nightly check --locked --package xtask --target x86_64-unknown-linux-gnu
+cargo fmt --all -- --check
+cargo test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
+cargo test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
+cargo check --locked --package xtask --target x86_64-unknown-linux-gnu
 ```
 
 A failure is a stop condition. Do not treat later image creation as proof that the tests passed.
@@ -76,14 +76,16 @@ A failure is a stop condition. Do not treat later image creation as proof that t
 Still from `KeefeOS/`:
 
 ```sh
-cargo +nightly build --locked --package keefeos-kernel --target x86_64-unknown-none
-cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
-cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
+cargo build --locked --package keefeos-kernel --target x86_64-unknown-none
+cargo build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
+cargo run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 ```
 
 The image command assembles the project image. **Image creation is not a boot test and is not an installer.** Keep the generated image as an experimental artifact.
 
 ## 6. Verify early boot in QEMU/OVMF
+
+The latest full passing run is [GitHub Actions #40605994765](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40605994765) on commit `b55a9575690925a6ec2304b27a79df1b591b4b3d` (PR #27, not merged). It passed 22 boot-protocol tests, 47 kernel unit tests, a RustSec dependency advisory scan of `Cargo.lock`, Clippy checks, both target builds, image packaging, and the QEMU/OVMF three-profile boot matrix. The CI run does not prove a complete OS or physical-device support.
 
 The canonical end-to-end test is the repository's [KeefeOS CI workflow](../.github/workflows/blank.yml). It builds and packages the image, discovers a matching OVMF firmware code/variables pair, and boots QEMU at 256 MiB, 512 MiB, and 1 GiB RAM. The workflow requires both the firmware splash marker and `KEEFEOS-KERNEL-BOOT-OK` in each serial log.
 
@@ -93,7 +95,7 @@ Check the latest [Actions runs](https://github.com/CallmeKeefe/Keefe-OS/actions)
 
 ## 7. Troubleshooting
 
-- **Rust target missing:** rerun the `rustup toolchain install nightly ...` command above and check `rustup target list --toolchain nightly --installed`.
+- **Rust target missing:** rerun the `rustup toolchain install nightly-2026-10-27 --profile minimal ...` command above and check `rustup target list --toolchain nightly --installed`.
 - **QEMU command not found:** install `qemu-system-x86` using the package manager for the Ubuntu environment you are actually using.
 - **OVMF files not found:** install `ovmf`; inspect `/usr/share/OVMF`, `/usr/share/ovmf`, and `/usr/share/qemu` for a matching firmware code/variables pair. Do not pair unrelated firmware files.
 - **QEMU cannot use virtualization acceleration:** use software emulation for this test; do not change host firmware or security settings just to make the prototype run.

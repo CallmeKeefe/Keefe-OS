@@ -5,7 +5,6 @@
 //! vulnerability scanning, and attack detection are not implemented; security
 //! sensitive operations fail closed or report an incomplete assessment.
 
-#![no_std]
 extern crate alloc;
 
 use alloc::vec::Vec;

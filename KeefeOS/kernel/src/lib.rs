@@ -1,29 +1,19 @@
-//! KeefeOS Microkernel Library
+//! KeefeOS experimental kernel library.
 //!
-//! This is the experimental core library of the KeefeOS kernel.
-//! It provides safe Rust abstractions for:
-//! - Physical memory management (frame allocation)
-//! - Virtual memory management (page tables)
-//! - Interrupt handling (GDT, IDT, exceptions)
-//! - Capability-based security primitives
-//! - AI/ML-powered intelligent subsystems
-//! - Advanced security with blockchain audit logs
-//! - LLM-powered AI agent for natural language interaction
+//! This crate contains early kernel mechanisms plus experimental interfaces.
+//! It is not yet a complete microkernel: user-mode processes, enforced
+//! capability isolation, a general driver framework, and production paging
+//! lifecycle are not verified.
 //!
-//! # Safety Guarantees
+//! The AI modules are deterministic heuristics and a local command demo.
+//! They are not a connected LLM, agent runtime, process scheduler, or security
+//! monitor. The security module fails closed but does not implement a trusted
+//! boot chain or a complete cryptographic/key-management system.
 //!
-//! Hardware access is still experimental and some low-level APIs remain unsafe.
-//! `unsafe` blocks are only used where absolutely necessary:
-//! - CPU-specific instructions (CR3, INVLPG, etc.)
-//! - Memory-mapped I/O access
-//! - Inline assembly for low-level operations
-//!
-//! Unsafe code requires ongoing review; the project is not a production-ready OS.
+//! Hardware access remains experimental. Unsafe operations require ongoing
+//! review and tests tied to their actual safety invariants.
 
 #![no_std]
-#![feature(asm_const)]
-#![feature(naked_functions)]
-#![feature(panic_info_message)]
 #![feature(abi_x86_interrupt)]
 #![warn(missing_docs)]
 #![warn(missing_debug_implementations)]
@@ -41,10 +31,14 @@ pub mod llm_agent;
 
 /// Kernel version information
 pub const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const KERNEL_NAME: &str = "KeefeOS Microkernel";
+pub const KERNEL_NAME: &str = "KeefeOS experimental kernel";
 
-/// Initialize the kernel subsystems
-/// This function should be called after basic hardware initialization
+/// Initialize the current experimental kernel subsystems.
+///
+/// This initializes memory helpers, deterministic AI heuristics, security
+/// status reporting, and a local command demo. It does not initialize a
+/// general user-space runtime, connect an external LLM, or enable a production
+/// security boundary.
 pub fn init(
     memory_map: &[memory::UEFIMemoryRegion],
     kernel_start: usize,

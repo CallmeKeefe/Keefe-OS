@@ -28,9 +28,12 @@ impl EarlyBumpAllocator {
     }
 }
 
+// SAFETY: the allocator is shared through a global static. Atomic compare_exchange
+// reserves disjoint byte ranges, the backing heap is static and aligned, and all
+// allocator state shared across threads/CPUs is contained in the atomic offset.
 unsafe impl Sync for EarlyBumpAllocator {}
 
-// Safety: allocations are disjoint ranges reserved via atomic compare_exchange.
+// SAFETY: allocations are disjoint ranges reserved via atomic compare_exchange.
 // The backing heap is static, aligned, and remains live for the kernel lifetime.
 // dealloc intentionally does nothing; therefore the heap only grows.
 unsafe impl GlobalAlloc for EarlyBumpAllocator {
