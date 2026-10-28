@@ -1,18 +1,11 @@
-//! Neural Network Inference Engine for KeefeOS
+//! Experimental feedforward-network API prototype for KeefeOS.
 //!
-//! A lightweight, embedded neural network implementation optimized for kernel-space use.
-//! Supports feedforward networks with configurable layers and activation functions.
-//!
-//! # Features
-//! - Fixed-point arithmetic option for deterministic behavior
-//! - Minimal memory footprint
-//! - No heap allocation after initialization
-//! - Thread-safe inference
-//!
-//! # Safety
-//! This module uses interior mutability with proper synchronization to avoid
-//! data races. The global NN instance is initialized once and then read-only.
-
+//! This module provides small deterministic layers for interface experiments.
+//! It does not load trained weights, implement model training, or provide a
+//! validated inference engine. The init function marks the prototype interface
+//! as initialized; the optional global network remains absent until explicitly
+//! installed with init_global_nn. Outputs must not be used for security
+//! decisions or described as predictions from a trained model.
 
 use core::sync::atomic::{AtomicBool, Ordering};
 use spin::Mutex;
@@ -20,10 +13,12 @@ use spin::Mutex;
 static NN_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static GLOBAL_NN: Mutex<Option<NeuralNetwork>> = Mutex::new(None);
 
-/// Initialize the neural network engine
+/// Mark the neural-network prototype interface initialized without loading a model.
 pub fn init() {
     NN_INITIALIZED.store(true, Ordering::Release);
-    log::debug!("Neural network engine initialized");
+    log::warn!(
+        "Neural-network prototype interface initialized; no trained weights or global model loaded"
+    );
 }
 
 /// Check if the neural network engine is initialized
@@ -41,14 +36,18 @@ pub struct Layer {
 }
 
 impl Layer {
-    /// Create a new layer with random weights (for demonstration)
+    /// Create a layer with deterministic demonstration coefficients.
+    ///
+    /// These coefficients are not random or trained; this constructor exists
+    /// for API experiments and must not be treated as model initialization.
     pub fn new(input_size: usize, output_size: usize) -> Self {
         assert!(input_size <= 16 && output_size <= 16, "Layer size exceeds maximum");
         
         let mut weights = [[0.0; 16]; 16];
         let mut biases = [0.0; 16];
         
-        // Initialize with small random values (Xavier initialization simplified)
+        // Use deterministic demonstration coefficients; no random source or
+        // trained parameter set is available in this prototype.
         for i in 0..output_size {
             for j in 0..input_size {
                 weights[i][j] = (i as f32 * j as f32 * 0.01) - 0.005;
