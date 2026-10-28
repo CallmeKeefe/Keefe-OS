@@ -35,7 +35,11 @@ CI now tests three RAM sizes and requires both UEFI splash and kernel boot marke
 ### KOS-007 — Security/AI claims exceeded implementation (PARTIALLY REMEDIATED)
 Sensitive placeholder crypto and capability APIs fail closed. Scanner/attack detector/secure-boot APIs remain non-functional placeholders. See `docs/audit/SECURITY_STATUS.md`.
 
-## Static-analysis status\n\nA dedicated CodeQL workflow for Rust and GitHub Actions was added in `.github/workflows/codeql.yml`. Its first run/result upload has not yet been confirmed; it is configured coverage, not evidence of a clean scan.\n\n## Remaining work
+## Static-analysis status
+
+A dedicated CodeQL workflow for Rust and GitHub Actions was added in `.github/workflows/codeql.yml`. Its first run/result upload has not yet been confirmed; it is configured coverage, not evidence of a clean scan.
+
+## Remaining work
 
 1. Resolve the GOP memory-map gap with a correctly designed and tested physical/MMIO mapping contract; do not bypass validation.
 2. Remove or explicitly constrain the fixed 32–64 MiB load address; ideally add verified relocation support.
