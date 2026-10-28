@@ -4,11 +4,11 @@
 
 > **Experimental OS prototype.** Early boot is verified only under x86-64 QEMU + OVMF UEFI. Physical installation and production use are not supported. The kernel uses a fixed load window; the persistent kernel framebuffer console remains disabled until target-specific page-table mapping and MMIO cache attributes are proven; a reserved UEFI memory descriptor alone is insufficient.
 
-## Latest verified milestone
+## Latest confirmed CI milestone
 
-**Most recent completed full CI pass for the PR #28 implementation before the status-documentation refresh:** [run 40663043280](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40663043280), commit `ea0727c7eb2ba9eb19bd8e3b66ac61e091d4f6c0`. PR #27 was closed in favor of consolidated [PR #28](https://github.com/CallmeKeefe/Keefe-OS/pull/28); check PR #28 for the current run.
+**Latest completed full CI pass confirmed:** [run 40698180312](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40698180312) on PR-head commit `9cfbbff013765ca88b3a999471ab2248787b1308`. This is evidence for that exact commit, not for later revisions of `main`. The code then advanced to `c27a616c7330702c65213f185a0dec41810a6b4d`; the current main revision and subsequent audit/workflow changes still need their own confirmed CI results. Check [GitHub Actions](https://github.com/CallmeKeefe/Keefe-OS/actions) for the exact commit and result.
 
-That run passed 22 boot-protocol tests and 47 kernel unit tests, the host helper check, RustSec `cargo-audit` against the locked dependency set, Clippy for the boot protocol/kernel/helper, the optional legacy-VGA compile check, kernel and UEFI-loader builds, image packaging, and the QEMU/OVMF boot matrix at **256 MiB, 512 MiB, and 1 GiB RAM**. Each profile required the firmware-rendered GOP splash and `KEEFEOS-KERNEL-BOOT-OK`. Direct kernel framebuffer writes remain disabled until active mapping and MMIO cache attributes are proven.
+The full job passed 22 boot-protocol tests and 51 kernel unit tests, the host helper check, RustSec `cargo-audit` over the 58 locked crate dependencies, Clippy, optional legacy-VGA compilation, kernel and UEFI-loader builds, disk-image packaging, and QEMU/OVMF boot-and-splash checks at **256 MiB, 512 MiB, and 1 GiB RAM**. Each profile emitted `KEEFEOS-KERNEL-BOOT-OK`; the framebuffer memory-map gap remained, so direct kernel framebuffer writes stay disabled.
 
 Representative serial output:
 
@@ -30,7 +30,7 @@ This verifies three QEMU RAM profiles using the same x86-64 QEMU/OVMF setup. It 
 | BootInfo ABI and bounded ELF64 parser | 22 protocol tests passed |
 | Kernel unit tests | 47 passed |
 | Kernel / UEFI loader builds | Passed in the cited CI run |
-| QEMU/OVMF early boot | Passed with 256 MiB, 512 MiB, and 1 GiB RAM |
+| QEMU/OVMF early boot | Passed with 256 MiB, 512 MiB, and 1 GiB RAM in run 40698180312; current `main` requires a fresh result |
 | UEFI visual boot splash | Passed using firmware GOP BLT before ExitBootServices |
 | Kernel load address | Fixed 32–64 MiB identity-mapped window; relocation is not implemented |
 | Direct kernel framebuffer console | **Disabled by design**: a reserved UEFI descriptor does not prove active virtual mapping or correct MMIO cache attributes; firmware draws the splash before `ExitBootServices`. |
@@ -40,13 +40,13 @@ This verifies three QEMU RAM profiles using the same x86-64 QEMU/OVMF setup. It 
 | Secure boot, authenticated cryptography, capability signatures | Not implemented; sensitive APIs fail closed |
 | Vulnerability scanner / attack detector | Placeholder interfaces; empty results do not mean a clean system |
 | ARM64, RISC-V, mobile devices | Not supported |
-| End-user installer / recovery / upgrades | Not implemented |
+| CodeQL static analysis | Workflow added for Rust and GitHub Actions; first result not yet verified |\n| End-user installer / recovery / upgrades | Not implemented |
 
 Check [GitHub Actions](https://github.com/CallmeKeefe/Keefe-OS/actions) for the latest result. Results from later commits may differ.
 
 ## Repository layout
 
-- `KeefeOS/boot-protocol` — versioned BootInfo ABI and bounds-checked ELF64 parser.
+- `.github/workflows/codeql.yml` — pinned CodeQL analysis for Rust and GitHub Actions; initial result pending.\n- `KeefeOS/boot-protocol` — versioned BootInfo ABI and bounds-checked ELF64 parser.
 - `KeefeOS/bootloader` — UEFI loader and firmware-rendered boot splash.
 - `KeefeOS/kernel` — x86-64 kernel, memory management, interrupt setup, and experimental modules.
 - `KeefeOS/xtask` — host build, FAT image packaging, and QEMU helper.
@@ -68,7 +68,7 @@ sudo apt-get update
 sudo apt-get install -y qemu-system-x86 ovmf
 ```
 
-From the workspace directory:
+The repository has known workspace-wide Rust formatting drift tracked in issue #23; `cargo fmt --all -- --check` may fail on the existing baseline and is not currently a green CI gate. Format the files you change and distinguish pre-existing formatting differences from new ones.\n\nFrom the workspace directory:
 
 ```sh
 cd KeefeOS
