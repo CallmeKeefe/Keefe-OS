@@ -552,9 +552,12 @@ mod tests {
         ];
         let mut alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
 
-        assert_eq!(alloc.allocate_contiguous(2), None);
+        // Each region has only two pages; the kernel reservation leaves
+        // one free page in the first region, so no run of three can exist.
+        // The second region does contain two contiguous pages and must remain usable.
+        assert_eq!(alloc.allocate_contiguous(3), None);
         assert_eq!(alloc.allocate(), Some(0x10_1000));
-        assert_eq!(alloc.allocate(), Some(0x20_0000));
+        assert_eq!(alloc.allocate_contiguous(2), Some(0x20_0000));
     }
 }
 
