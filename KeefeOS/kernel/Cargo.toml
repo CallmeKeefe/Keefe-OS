@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
 description = "Experimental x86_64 bare-metal kernel"
 
 # The kernel is a binary crate that produces a bare-metal executable
@@ -22,15 +23,16 @@ bitflags.workspace = true
 log.workspace = true
 spin.workspace = true
 
-# uefi for memory map parsing (used during boot, then can be minimized)
-uefi = { workspace = true, optional = true }
+# UEFI firmware protocols are owned by the bootloader; the kernel consumes
+# only the validated shared boot-protocol ABI.
 
-# Optional dependencies for different phases
+# Optional kernel mechanisms
 [features]
-default = ["uefi-boot"]
-uefi-boot = ["dep:uefi"]
 # The page-table managers are legacy prototypes and are disabled until migrated.
 experimental-paging = []
+# Unsafe legacy VGA text-memory output is disabled unless a target explicitly opts in.
+# Do not enable without proving 0xB8000 is mapped as VGA text memory on the target.
+legacy-vga-console = []
 
 # No standard library - pure bare-metal
 [lib]

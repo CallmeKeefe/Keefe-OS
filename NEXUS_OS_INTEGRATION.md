@@ -1,5 +1,9 @@
 # Nexus OS: System Integration & Device Ecosystem
 
+> **Implementation status — proposal only (checked 2026-10-28):** This document describes possible future cross-device integration. The fabric, discovery, attestation, encrypted mesh, remote resource virtualization, wearables, and AI coordination described here are not implemented features. KeefeOS currently has an experimental x86-64 kernel/UEFI loader and a QEMU + OVMF early-boot test path. It does not yet have a complete user-space OS, general driver stack, secure cross-device transport, mobile hardware support, or a production AI-agent runtime. Read [the current architecture guide](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md), and [compatibility matrix](docs/COMPATIBILITY.md) for verified scope.
+
+
+
 ## 1. Integration Architecture Overview
 The integration of Nexus OS across devices relies on the **Nexus Fabric**, a peer-to-peer mesh network that creates a unified logical system from disparate physical hardware.
 

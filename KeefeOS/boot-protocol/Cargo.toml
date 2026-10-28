@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
 description = "Validated KeefeOS boot information and ELF64 parsing protocol"
 
 [lib]

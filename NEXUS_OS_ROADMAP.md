@@ -1,5 +1,9 @@
 # Nexus OS: Implementation Roadmap
 
+> **Implementation status — proposal only (checked 2026-10-28):** This document is an aspirational roadmap. The phase names and month ranges are not delivery promises, and none of its milestones should be assumed implemented unless current source and CI prove them. KeefeOS currently has an experimental x86-64 kernel/UEFI loader and a QEMU + OVMF early-boot test path. It does not yet have a complete user-space OS, general driver stack, secure cross-device transport, mobile hardware support, or a production AI-agent runtime. Read [the current architecture guide](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md), and [compatibility matrix](docs/COMPATIBILITY.md) for verified scope.
+
+
+
 ## Phase 1: The Nucleus (Months 1-12)
 **Goal**: A bootable microkernel running on x86_64 and ARM64 with basic IPC.
 

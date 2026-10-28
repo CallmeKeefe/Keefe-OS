@@ -47,8 +47,8 @@ pub fn init() {
     idt.virtualization.set_handler_fn(fatal_no_error);
 
     let idt_ref: &'static InterruptDescriptorTable = Box::leak(Box::new(idt));
-    // SAFETY: idt_ref is leaked and remains valid for the kernel lifetime.
-    unsafe { idt_ref.load() };
+    // The leaked table remains valid for the kernel lifetime.
+    idt_ref.load();
     *IDT_READY.lock() = true;
     println!("  [IDT] CPU exception table loaded; device IRQ routing is not enabled");
 }

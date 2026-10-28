@@ -11,12 +11,12 @@
 //! 3. Initialize GDT/TSS and the CPU exception table.
 //! 4. Emit a serial-visible milestone and enter the idle halt loop.
 //!
-//! The current bootloader deliberately does not yet hand off the ELF kernel.
+//! The current loader passes the validated BootInfo handoff and transfers control
+//! to this entry point. The tested early-boot path remains experimental.
 
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt)]
-#![feature(naked_functions)]
 #![feature(alloc_error_handler)]
 
 extern crate alloc;
@@ -41,14 +41,8 @@ pub extern "sysv64" fn kernel_start(boot_info_ptr: u64) -> ! {
     println!("========================================\n");
     println!("Validating KeefeOS BootInfo handoff...");
 
-    let info_size = core::mem::size_of::<keefeos_kernel::bootinfo::BootInfo>() as u64;
-    let info_align = core::mem::align_of::<keefeos_kernel::bootinfo::BootInfo>() as u64;
-    if boot_info_ptr < 0x1000
-        || boot_info_ptr >= 0x4000_0000
-        || boot_info_ptr % info_align != 0
-        || boot_info_ptr.checked_add(info_size).is_none()
-    {
-        println!("Invalid, out-of-contract, or misaligned BootInfo pointer");
+    if !keefeos_kernel::bootinfo::is_valid_boot_info_pointer(boot_info_ptr) {
+        println!("Invalid, out-of-contract, misaligned, or truncated BootInfo pointer");
         halt_forever();
     }
 
@@ -66,27 +60,20 @@ pub extern "sysv64" fn kernel_start(boot_info_ptr: u64) -> ! {
         halt_forever();
     }
 
-    // Use GOP only when the loader marked its complete memory range reserved.
-    // Serial output remains the fallback if firmware exposes no safe direct buffer.
-    if boot_info.flags & keefeos_kernel::bootinfo::BOOT_INFO_FLAG_GOP_RESERVED != 0 {
-        if console::init_framebuffer(boot_info) {
-            println!(
-                "GOP framebuffer enabled: {}x{}, stride {}",
-                boot_info.fb_horiz_res,
-                boot_info.fb_vert_res,
-                boot_info.fb_pixels_per_scan_line
-            );
-        } else {
-            println!("GOP metadata passed BootInfo checks but the kernel renderer rejected it; serial remains active");
-        }
-    } else if boot_info.flags & keefeos_kernel::bootinfo::BOOT_INFO_FLAG_GOP_FOUND == 0 {
+    // The UEFI bootloader renders the startup splash through firmware GOP BLT.
+    // Do not write to the physical framebuffer directly here: a "reserved" UEFI
+    // memory descriptor does not prove that the current page tables map the range
+    // or that its MMIO cache attributes are correct.
+    if boot_info.flags & keefeos_kernel::bootinfo::BOOT_INFO_FLAG_GOP_FOUND == 0 {
         println!("No UEFI GOP protocol found; serial diagnostics remain active");
     } else if boot_info.flags & keefeos_kernel::bootinfo::BOOT_INFO_FLAG_GOP_CONVENTIONAL_OVERLAP != 0 {
-        println!("GOP range overlaps conventional RAM; unsafe framebuffer writes refused");
+        println!("GOP range overlaps conventional RAM; direct kernel writes refused");
     } else if boot_info.flags & keefeos_kernel::bootinfo::BOOT_INFO_FLAG_GOP_UNMAPPED != 0 {
-        println!("GOP range has a gap in the final memory map; unsafe framebuffer writes refused");
+        println!("GOP range has a gap in the final memory map; direct kernel writes refused");
+    } else if boot_info.flags & keefeos_kernel::bootinfo::BOOT_INFO_FLAG_GOP_RESERVED != 0 {
+        println!("GOP range is reserved in the firmware map, but direct kernel framebuffer writes remain disabled until page-table and MMIO attributes are verified");
     } else {
-        println!("GOP framebuffer reservation could not be proven; serial-only output");
+        println!("GOP framebuffer safety could not be proven; serial-only output");
     }
 
     let kernel_start = boot_info.kernel_start as usize;
@@ -141,10 +128,18 @@ pub extern "sysv64" fn kernel_start(boot_info_ptr: u64) -> ! {
 
     // Print memory statistics
     let stats = memory::get_memory_stats();
-    println!("Memory Stats:");
-    println!("  Total frames: {}", stats.total_frames);
-    println!("  Free frames: {}", stats.free_frames);
-    println!("  Total memory: {} GB", stats.total_bytes as f64 / (1024.0 * 1024.0 * 1024.0));
+    println!("Memory Stats (allocator view):");
+    println!("  Address span tracked: {} frames", stats.addressable_frames);
+    println!("  Occupied/reserved frames: {}", stats.occupied_frames);
+    println!("  Free usable frames: {}", stats.free_frames);
+    println!(
+        "  Address span (includes reserved gaps): {:.2} GiB",
+        stats.addressable_bytes as f64 / (1024.0 * 1024.0 * 1024.0)
+    );
+    println!(
+        "  Free conventional RAM: {} MiB",
+        stats.free_bytes / (1024 * 1024)
+    );
     
     // Initialize GDT (Global Descriptor Table) and TSS
     println!("Initializing GDT and TSS...");

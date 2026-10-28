@@ -1,7 +1,9 @@
-//! Virtual Memory Manager (Paging) for x86_64
+//! Experimental x86_64 paging helpers and page-table prototypes.
 //!
-//! This module implements 4-level paging as defined by the x86_64 architecture.
-//! It provides safe Rust abstractions for page tables and virtual memory mapping.
+//! The current boot path does not establish a fully verified page-table lifecycle,
+//! higher-half mapping, or per-process isolation. Mapping flags and arithmetic
+//! helpers do not by themselves implement capability-based authorization. This
+//! module is not a production memory-isolation or security boundary.
 //!
 //! # x86_64 4-Level Paging Structure
 //!
@@ -38,9 +40,9 @@
 //! Bit 63 (XD): Execute Disable - Prevent code execution (security)
 //! ```
 //!
-//! # Capability-Based Security Design
+//! # Target permission model (not yet enforced as a capability system)
 //!
-//! In KeefeOS, memory access is controlled through capabilities:
+//! A future implementation aims to mediate memory access through kernel-enforced capabilities:
 //! - A process can only map pages it holds capabilities for
 //! - Page permissions (R/W/X) are enforced at the hardware level
 //! - User/supervisor bit provides isolation between kernel and user space
@@ -82,32 +84,34 @@ use x86_64::{PhysAddr, VirtAddr};
 /// 4. Any NULL pointer dereference (0x0) will fault, not access kernel memory
 pub const KERNEL_OFFSET: VirtAddr = VirtAddr::new_truncate(0xFFFF800000000000);
 
-/// Convert a physical address to a kernel virtual address.
+/// Calculate the higher-half virtual address corresponding to a physical address.
 ///
-/// This is used to access physical memory from the kernel.
-/// All physical frames are identity-mapped at KERNEL_OFFSET.
+/// This performs only an offset calculation; it does not prove that a page-table
+/// mapping exists or is currently usable. Returns `None` if the sum overflows
+/// or falls outside the x86-64 canonical higher-half window.
 ///
 /// # Example
 /// ```
 /// let phys = PhysAddr::new(0x100000); // 1 MB
-/// let virt = phys_to_virt(phys);      // 0xFFFF800000100000
+/// let virt = phys_to_virt(phys);      // Some(0xFFFF800000100000)
 /// ```
 #[inline]
-pub fn phys_to_virt(phys: PhysAddr) -> VirtAddr {
-    VirtAddr::new(phys.as_u64() + KERNEL_OFFSET.as_u64())
+pub fn phys_to_virt(phys: PhysAddr) -> Option<VirtAddr> {
+    let address = phys.as_u64().checked_add(KERNEL_OFFSET.as_u64())?;
+    Some(VirtAddr::new(address))
 }
 
-/// Convert a kernel virtual address to a physical address.
+/// Calculate the physical offset represented by a higher-half kernel virtual address.
 ///
-/// This is the inverse of `phys_to_virt`, used when we need to store
-/// physical addresses in page table entries or pass them to hardware.
+/// This is arithmetic only: it does not validate the page table or prove that the
+/// address is mapped to the returned physical address. Lower-half addresses are
+/// rejected instead of underflowing.
 ///
-/// # Safety
-/// The input must be a kernel virtual address (>= KERNEL_OFFSET).
-/// Passing a user-space address will result in an invalid physical address.
+/// Returns `None` for a virtual address below `KERNEL_OFFSET`.
 #[inline]
-pub fn virt_to_phys(virt: VirtAddr) -> PhysAddr {
-    PhysAddr::new(virt.as_u64() - KERNEL_OFFSET.as_u64())
+pub fn virt_to_phys(virt: VirtAddr) -> Option<PhysAddr> {
+    let physical = virt.as_u64().checked_sub(KERNEL_OFFSET.as_u64())?;
+    Some(PhysAddr::new(physical))
 }
 
 bitflags! {
@@ -978,5 +982,32 @@ mod tests {
         assert!(kernel_ro.contains(MapFlags::PRESENT));
         assert!(!kernel_ro.contains(MapFlags::WRITABLE));
         assert!(!kernel_ro.contains(MapFlags::USER_ACCESSIBLE));
+    }
+}
+
+
+#[cfg(test)]
+mod checked_address_conversion_tests {
+    use super::{phys_to_virt, virt_to_phys, KERNEL_OFFSET};
+    use x86_64::{PhysAddr, VirtAddr};
+
+    #[test]
+    fn converts_small_physical_addresses_and_round_trips() {
+        let physical = PhysAddr::new(0x10_0000);
+        let virtual_address = phys_to_virt(physical).expect("valid low physical address");
+        assert_eq!(virtual_address.as_u64(), 0xFFFF_8000_0010_0000);
+        assert_eq!(virt_to_phys(virtual_address), Some(physical));
+    }
+
+    #[test]
+    fn rejects_physical_address_that_would_overflow_the_higher_half_offset() {
+        let physical = PhysAddr::new(1u64 << 47);
+        assert!(phys_to_virt(physical).is_none());
+    }
+
+    #[test]
+    fn rejects_lower_half_virtual_addresses() {
+        assert!(virt_to_phys(VirtAddr::new(0x1000)).is_none());
+        assert_eq!(virt_to_phys(KERNEL_OFFSET), Some(PhysAddr::new(0)));
     }
 }

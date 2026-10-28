@@ -1,11 +1,15 @@
 //! Console Output for KeefeOS
 //!
-//! This module provides basic console output functionality:
-//! - VGA text buffer (16 colors, 80x25 resolution)
-//! - Serial port output (for debugging and logging, COM1 16550 UART)
+//! This module provides serial diagnostics and an optional, experimental GOP framebuffer writer.
 //!
-//! Early boot output is serial-only. UEFI does not guarantee VGA text mode or
-//! an identity-mapped VGA buffer; GOP framebuffer support requires a validated handoff.
+//! VGA text memory at 0xB8000 is not assumed to be mapped or usable. The legacy
+//! VGA writer is available only with the opt-in `legacy-vga-console` feature
+//! and must not be enabled without a target-specific mapping guarantee.
+//!
+//! Early boot output is serial-first. The UEFI loader draws its splash using
+//! firmware GOP BLT calls before ExitBootServices. Direct kernel framebuffer
+//! writes remain disabled by default because reserved memory descriptors do
+//! not prove active virtual mapping or correct MMIO cache attributes.
 
 use core::fmt::{self, Write};
 use core::ptr::NonNull;
@@ -16,6 +20,7 @@ use x86_64::instructions::port::Port;
 /// Standard VGA text mode colors
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
+#[cfg(feature = "legacy-vga-console")]
 pub enum Color {
     Black = 0,
     Blue = 1,
@@ -39,8 +44,10 @@ pub enum Color {
 /// Combines foreground and background colors into a single byte
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
+#[cfg(feature = "legacy-vga-console")]
 pub struct ColorCode(u8);
 
+#[cfg(feature = "legacy-vga-console")]
 impl ColorCode {
     /// Create a new color code with the specified foreground and background colors
     pub const fn new(foreground: Color, background: Color) -> Self {
@@ -51,11 +58,13 @@ impl ColorCode {
 /// A single character cell in the VGA text buffer
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
+#[cfg(feature = "legacy-vga-console")]
 pub struct ScreenChar {
     ascii_character: u8,
     color_code: ColorCode,
 }
 
+#[cfg(feature = "legacy-vga-console")]
 impl ScreenChar {
     /// Create a new screen character
     pub const fn new(character: u8, color_code: ColorCode) -> Self {
@@ -67,19 +76,24 @@ impl ScreenChar {
 }
 
 /// VGA text buffer dimensions
+#[cfg(feature = "legacy-vga-console")]
 const BUFFER_HEIGHT: usize = 25;
+#[cfg(feature = "legacy-vga-console")]
 const BUFFER_WIDTH: usize = 80;
 
 /// VGA buffer memory address (standard location)
+#[cfg(feature = "legacy-vga-console")]
 const VGA_BUFFER_ADDRESS: usize = 0xB8000;
 
 /// The VGA text buffer structure
 #[repr(transparent)]
+#[cfg(feature = "legacy-vga-console")]
 struct Buffer {
     chars: [[ScreenChar; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 /// Writer to the VGA text buffer
+#[cfg(feature = "legacy-vga-console")]
 pub struct VgaWriter {
     column_position: usize,
     color_code: ColorCode,
@@ -88,8 +102,10 @@ pub struct VgaWriter {
 
 // SAFETY: All access to the VGA buffer is serialized through the global
 // `VGA_WRITER` mutex, so sending the writer between contexts is safe.
+#[cfg(feature = "legacy-vga-console")]
 unsafe impl Send for VgaWriter {}
 
+#[cfg(feature = "legacy-vga-console")]
 impl VgaWriter {
     /// Create a new VGA writer with default colors
     pub const fn new() -> Self {
@@ -193,6 +209,7 @@ impl VgaWriter {
 }
 
 /// Implement fmt::Write for VgaWriter to enable format! macro support
+#[cfg(feature = "legacy-vga-console")]
 impl fmt::Write for VgaWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write_message(s);
@@ -201,6 +218,7 @@ impl fmt::Write for VgaWriter {
 }
 
 /// Global VGA writer instance
+#[cfg(feature = "legacy-vga-console")]
 pub static VGA_WRITER: Mutex<VgaWriter> = Mutex::new(VgaWriter::new());
 
 /// Base I/O port of COM1
@@ -323,6 +341,9 @@ struct FramebufferWriter {
     cursor_y: usize,
 }
 
+// SAFETY: FramebufferWriter is only stored behind FRAMEBUFFER_WRITER's global
+// spin mutex, so mutable access is serialized. The caller of the unsafe
+// initializer must ensure the mapping remains valid for the writer's lifetime.
 unsafe impl Send for FramebufferWriter {}
 
 impl FramebufferWriter {
@@ -545,11 +566,20 @@ fn glyph(byte: u8) -> [u8; 5] {
     }
 }
 
-/// Initialize a checked GOP framebuffer writer after BootInfo validation.
+/// Initialize the experimental direct GOP framebuffer writer.
 ///
-/// Returns false when the loader did not expose a supported, reserved RGB/BGR
-/// framebuffer. Serial output remains available regardless.
-pub fn init_framebuffer(info: &BootInfo) -> bool {
+/// This is intentionally unsafe. The BootInfo format can validate geometry and
+/// firmware memory-map coverage, but that alone does not prove that the current
+/// page tables map the whole region with suitable writable MMIO cache attributes.
+///
+/// # Safety
+///
+/// The caller must verify the BootInfo structure and semantic invariants, require
+/// BOOT_INFO_FLAG_GOP_RESERVED, prove the full framebuffer range is currently
+/// mapped and writable with correct device-memory attributes, and ensure that
+/// mapping remains valid for the lifetime of the writer. The normal kernel boot
+/// path does not call this function and stays serial-only.
+pub unsafe fn init_framebuffer(info: &BootInfo) -> bool {
     let Some(mut writer) = FramebufferWriter::from_boot_info(info) else {
         return false;
     };
@@ -591,10 +621,10 @@ pub fn init() {
     }
 
     // Do not touch VGA text memory: UEFI does not promise legacy VGA mode.
-    log::info!("Console initialized (COM1 serial only; GOP is not wired yet)");
+    log::info!("Console initialized on COM1; direct kernel framebuffer output remains disabled pending page-table/MMIO validation");
 }
 
-/// Write a byte to both VGA and serial outputs
+/// Write a byte to serial and the optional, explicitly initialized GOP writer.
 pub fn write_byte(byte: u8) {
     // Serial always remains available as the fallback diagnostic channel.
     {
@@ -608,7 +638,7 @@ pub fn write_byte(byte: u8) {
     }
 }
 
-/// Write a string to both outputs
+/// Write a string to serial and the optional, explicitly initialized GOP writer.
 pub fn write_str(s: &str) {
     for byte in s.bytes() {
         write_byte(byte);
@@ -622,11 +652,14 @@ pub fn _print(args: fmt::Arguments) {
     {
         let mut serial = SERIAL_WRITER.lock();
         if let Some(ref mut writer) = *serial {
-            writer.write_fmt(args).unwrap();
+            // Console output is best-effort. Never panic while reporting another
+            // failure, which could recurse through the panic handler.
+            let _ = writer.write_fmt(args);
         }
     }
     if let Some(ref mut writer) = *FRAMEBUFFER_WRITER.lock() {
-        writer.write_fmt(args).unwrap();
+        // Keep formatting/output failures from recursively panicking.
+        let _ = writer.write_fmt(args);
     }
 }
 

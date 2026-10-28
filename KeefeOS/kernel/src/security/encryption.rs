@@ -5,7 +5,6 @@
 //! return errors instead of pretending XOR or predictable bytes are secure.
 //! Do not use this module to protect data.
 
-#![no_std]
 extern crate alloc;
 
 use alloc::vec::Vec;

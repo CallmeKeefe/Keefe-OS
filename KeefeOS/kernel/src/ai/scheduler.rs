@@ -4,7 +4,6 @@
  //! process scheduler and not a trained ML model. It is intentionally safe to
  //! initialize before any user-space scheduling infrastructure exists.
 
-#![no_std]
 
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use spin::Mutex;

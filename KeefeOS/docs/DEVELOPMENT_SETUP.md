@@ -4,7 +4,7 @@ This guide covers source builds, tests, and a disposable QEMU image. It does not
 
 ## Verified test path
 
-[GitHub Actions run 40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679) at commit `df97691cdecd26ff3a099b981b542817088683b1` passed 22 boot-protocol tests, 31 kernel tests, the host helper check, both target builds, image packaging, and QEMU/OVMF boot and splash checks at 256 MiB, 512 MiB, and 1 GiB RAM. Each profile logged `UEFI GOP splash drawn through firmware BLT` and `KEEFEOS-KERNEL-BOOT-OK`.
+[GitHub Actions run 40605994765](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40605994765) on audit-branch commit `b55a9575690925a6ec2304b27a79df1b591b4b3d` (PR #27; not merged at the time of this evidence) passed 22 boot-protocol tests and 47 kernel tests, RustSec cargo-audit, the host helper check, Clippy for the boot protocol/kernel/helper, optional legacy-VGA compilation, both target builds, image packaging, and QEMU/OVMF boot and splash checks at 256 MiB, 512 MiB, and 1 GiB RAM. Each profile logged `UEFI GOP splash drawn through firmware BLT` and `KEEFEOS-KERNEL-BOOT-OK`.
 
 This is still a single QEMU/OVMF firmware/device setup with varying RAM sizes. Physical machines, other UEFI implementations, native Windows/macOS hosts, ARM64, RISC-V, phones, and other hypervisors are not verified. The loader uses a fixed 32–64 MiB x86-64 kernel load window, not a relocatable image.
 
@@ -13,7 +13,7 @@ This is still a single QEMU/OVMF firmware/device setup with varying RAM sizes. P
 Use Linux or WSL2 with Ubuntu. Install Rust nightly and targets:
 
 ```sh
-rustup toolchain install nightly --component rust-src --component llvm-tools --component rustfmt --component clippy --target x86_64-unknown-none --target x86_64-unknown-uefi
+rustup toolchain install nightly-2026-10-27 --profile minimal --component rust-src --component llvm-tools --component rustfmt --component clippy --target x86_64-unknown-none --target x86_64-unknown-uefi
 sudo apt-get update
 sudo apt-get install -y qemu-system-x86 ovmf
 ```
@@ -24,13 +24,13 @@ From the repository root:
 
 ```sh
 cd KeefeOS
-cargo +nightly fmt --all -- --check
-cargo +nightly test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
-cargo +nightly test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
-cargo +nightly check --locked --package xtask --target x86_64-unknown-linux-gnu
-cargo +nightly build --locked --package keefeos-kernel --target x86_64-unknown-none
-cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
-cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
+cargo fmt --all -- --check
+cargo test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
+cargo test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
+cargo check --locked --package xtask --target x86_64-unknown-linux-gnu
+cargo build --locked --package keefeos-kernel --target x86_64-unknown-none
+cargo build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
+cargo run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 ```
 
 CI runs the QEMU memory matrix and fails unless every profile renders the UEFI splash through BLT and reaches the kernel boot marker. Logs are uploaded per RAM size.

@@ -4,7 +4,6 @@
 //! system-management service. It handles a few recognized strings locally so
 //! the kernel can expose a stable prototype API without claiming AI inference.
 
-#![no_std]
 
 extern crate alloc;
 
@@ -133,7 +132,7 @@ pub fn process_command(command: &str) -> AgentResponse {
     match classify_command(command) {
         CommandType::SystemQuery => AgentResponse::new(
             true,
-            "KeefeOS status: experimental x86-64 kernel prototype. Boot is not yet verified; paging, process isolation, drivers, and runtime security monitoring are incomplete.",
+            "KeefeOS status: experimental x86-64 kernel prototype. Early boot has passed the configured QEMU/OVMF RAM matrix; this does not establish a complete OS. Paging safety, process isolation, general drivers, and runtime security monitoring are incomplete.",
         )
         .with_confidence(1.0)
         .suggest("show build status")
@@ -172,6 +171,15 @@ mod tests {
     #[test]
     fn recognizes_status_command() {
         assert_eq!(classify_command("show system status"), CommandType::SystemQuery);
+    }
+
+    #[test]
+    fn status_command_reports_verified_scope_without_claiming_full_os_support() {
+        AGENT_INITIALIZED.store(true, Ordering::Release);
+        let response = process_command("status");
+        assert!(response.message.contains("QEMU/OVMF"));
+        assert!(response.message.contains("does not establish a complete OS"));
+        assert!(response.message.contains("process isolation"));
     }
 
     #[test]

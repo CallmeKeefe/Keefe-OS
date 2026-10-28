@@ -1,16 +1,16 @@
 # KeefeOS audit and remediation status
 
 **Initial audit baseline:** `98a7f75cb8273037615ae0fe29ac70aa94bbce8e`  
-**Current tested commit:** `df97691cdecd26ff3a099b981b542817088683b1`  
-**CI evidence:** [run 40201976679](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40201976679)
+**Most recent completed passing code evidence:** `ea0727c7eb2ba9eb19bd8e3b66ac61e091d4f6c0` on active [PR #28](https://github.com/CallmeKeefe/Keefe-OS/pull/28).  
+**CI evidence:** [run 40663043280](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40663043280). Documentation-only changes may trigger a newer run.
 
 This is an evidence-based engineering status, not a formal verification or security certification.
 
 ## Current verified state
 
-CI run 40201976679 passed 22 boot-protocol tests, 31 kernel tests, host helper check, kernel and UEFI-loader builds, FAT image assembly, and QEMU/OVMF smoke tests at **256 MiB, 512 MiB, and 1 GiB RAM**. Each serial log contained `UEFI GOP splash drawn through firmware BLT` and `KEEFEOS-KERNEL-BOOT-OK`.
+CI run 40663043280 passed 22 boot-protocol tests, 47 kernel tests, RustSec cargo-audit against the locked dependency set, host helper check, Clippy checks, optional legacy-VGA feature compilation, kernel and UEFI-loader builds, FAT image assembly, and QEMU/OVMF smoke tests at **256 MiB, 512 MiB, and 1 GiB RAM**. Each serial log contained `UEFI GOP splash drawn through firmware BLT` and `KEEFEOS-KERNEL-BOOT-OK`.
 
-The UEFI splash is rendered by firmware before ExitBootServices. The kernel's direct framebuffer console is still disabled because the final UEFI map has a gap over the GOP buffer at `0x80000000`. The kernel correctly refuses direct writes to a range whose mapping/reservation cannot be proven.
+The UEFI splash is rendered by firmware before ExitBootServices. Direct kernel framebuffer writes remain disabled until active page-table mapping and MMIO cache attributes are proven. Firmware memory-map classification alone is not sufficient.
 
 ## Historical baseline findings
 
@@ -47,6 +47,6 @@ Sensitive placeholder crypto and capability APIs fail closed. Scanner/attack det
 
 ## Claims
 
-Verified: x86-64 QEMU + OVMF early boot with 256 MiB, 512 MiB, and 1 GiB RAM; firmware-rendered GOP splash; 22 protocol tests and 31 kernel tests.
+Verified: x86-64 QEMU + OVMF early boot with 256 MiB, 512 MiB, and 1 GiB RAM; firmware-rendered GOP splash; 22 protocol tests and 47 kernel tests.
 
 Not verified: physical PC installation, other UEFI firmware, VirtualBox/VMware/Hyper-V, a persistent kernel framebuffer console, full scheduler/process model, secure boot, real cryptography, broad drivers, ARM64, RISC-V, phones, or production security.

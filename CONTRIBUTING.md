@@ -14,16 +14,15 @@ Thank you for helping improve KeefeOS. The project is an experimental x86-64 Rus
 The currently documented build/image workflow is aimed at Linux or WSL2. Install the pinned nightly toolchain, Rust source and LLVM tools, plus the x86-64 bare-metal and UEFI targets. On Ubuntu/Debian, QEMU and OVMF are used for emulation.
 
 ~~~sh
-rustup toolchain install nightly --component rust-src --component llvm-tools --component rustfmt --component clippy --target x86_64-unknown-none --target x86_64-unknown-uefi
+rustup toolchain install nightly-2026-10-27 --profile minimal --component rust-src --component llvm-tools --component rustfmt --component clippy --target x86_64-unknown-none --target x86_64-unknown-uefi
 cd KeefeOS
-cargo +nightly fmt --all -- --check
-cargo +nightly check --locked --package xtask --target x86_64-unknown-linux-gnu
-cargo +nightly build --locked --package keefeos-kernel --target x86_64-unknown-none
-cargo +nightly build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
-cargo +nightly run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
+cargo check --locked --package xtask --target x86_64-unknown-linux-gnu
+cargo build --locked --package keefeos-kernel --target x86_64-unknown-none
+cargo build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
+cargo run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
 ~~~
 
-These commands describe the intended checks, not guaranteed passing results. Consult the current Actions run for the exact commit and report any failure accurately. The currently documented CI evidence verifies an early-boot milestone under x86-64 QEMU + OVMF at three RAM sizes; it does not verify a complete OS or physical hardware. Image creation alone is not a boot test. See the [compatibility matrix](docs/COMPATIBILITY.md) and [current OS status](docs/audit/OS_STATUS.md).
+The repository has known formatting drift in legacy Rust files, so a repository-wide `cargo fmt --all -- --check` is not currently a passing gate. Format the Rust files you change and avoid unrelated formatting-only churn; the full baseline cleanup is tracked in issue #23. These commands describe the intended checks, not guaranteed passing results. Consult the current Actions run for the exact commit and report any failure accurately. The currently documented CI evidence verifies an early-boot milestone under x86-64 QEMU + OVMF at three RAM sizes; it does not verify a complete OS or physical hardware. Image creation alone is not a boot test. See the [compatibility matrix](docs/COMPATIBILITY.md) and [current OS status](docs/audit/OS_STATUS.md).
 
 ## Contribution process
 

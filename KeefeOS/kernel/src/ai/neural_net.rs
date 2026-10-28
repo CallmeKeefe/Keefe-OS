@@ -1,31 +1,24 @@
-//! Neural Network Inference Engine for KeefeOS
+//! Experimental feedforward-network API prototype for KeefeOS.
 //!
-//! A lightweight, embedded neural network implementation optimized for kernel-space use.
-//! Supports feedforward networks with configurable layers and activation functions.
-//!
-//! # Features
-//! - Fixed-point arithmetic option for deterministic behavior
-//! - Minimal memory footprint
-//! - No heap allocation after initialization
-//! - Thread-safe inference
-//!
-//! # Safety
-//! This module uses interior mutability with proper synchronization to avoid
-//! data races. The global NN instance is initialized once and then read-only.
+//! This module provides small deterministic layers for interface experiments.
+//! It does not load trained weights, implement model training, or provide a
+//! validated inference engine. The init function marks the prototype interface
+//! as initialized; the optional global network remains absent until explicitly
+//! installed with init_global_nn. Outputs must not be used for security
+//! decisions or described as predictions from a trained model.
 
-#![no_std]
-
-use alloc::vec::Vec;
 use core::sync::atomic::{AtomicBool, Ordering};
 use spin::Mutex;
 
 static NN_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static GLOBAL_NN: Mutex<Option<NeuralNetwork>> = Mutex::new(None);
 
-/// Initialize the neural network engine
+/// Mark the neural-network prototype interface initialized without loading a model.
 pub fn init() {
     NN_INITIALIZED.store(true, Ordering::Release);
-    log::debug!("Neural network engine initialized");
+    log::warn!(
+        "Neural-network prototype interface initialized; no trained weights or global model loaded"
+    );
 }
 
 /// Check if the neural network engine is initialized
@@ -43,14 +36,18 @@ pub struct Layer {
 }
 
 impl Layer {
-    /// Create a new layer with random weights (for demonstration)
+    /// Create a layer with deterministic demonstration coefficients.
+    ///
+    /// These coefficients are not random or trained; this constructor exists
+    /// for API experiments and must not be treated as model initialization.
     pub fn new(input_size: usize, output_size: usize) -> Self {
         assert!(input_size <= 16 && output_size <= 16, "Layer size exceeds maximum");
         
         let mut weights = [[0.0; 16]; 16];
         let mut biases = [0.0; 16];
         
-        // Initialize with small random values (Xavier initialization simplified)
+        // Use deterministic demonstration coefficients; no random source or
+        // trained parameter set is available in this prototype.
         for i in 0..output_size {
             for j in 0..input_size {
                 weights[i][j] = (i as f32 * j as f32 * 0.01) - 0.005;
@@ -146,7 +143,10 @@ pub fn get_global_nn() -> Option<NeuralNetwork> {
     GLOBAL_NN.lock().as_ref().cloned()
 }
 
-/// Initialize the global neural network with a default configuration
+/// Install an untrained demonstration network with deterministic coefficients.
+///
+/// This is for API experiments only. It is not a trained model and must not
+/// be connected to process scheduling or security decisions.
 pub fn init_global_nn() {
     let nn = NeuralNetwork::new();
     
@@ -158,25 +158,30 @@ pub fn init_global_nn() {
     
     *GLOBAL_NN.lock() = Some(nn_with_layers);
     
-    log::info!("Global neural network initialized (8->16->8->4)");
+    log::warn!("Untrained demonstration network installed (8->16->8->4); not connected to OS scheduling");
 }
 
-/// Example: Predict process scheduling priority based on features
-/// Features: [cpu_usage, memory_pressure, io_wait, nice_value, ...]
+/// Return an experimental priority suggestion from the demonstration network.
+///
+/// This is not a trained scheduling model and is not connected to the OS
+/// scheduler. A missing model or non-finite output returns the neutral default
+/// priority (5); it must not accidentally become highest priority (0).
+/// Priority values range from 0 (highest) through 9 (lowest).
 pub fn predict_scheduling_priority(features: &[f32]) -> u8 {
     if !is_initialized() {
-        return 5; // Default priority
+        return 5;
     }
-    
-    let result = if let Some(nn) = get_global_nn() {
-        nn.predict(features)
-    } else {
-        [0.0; 16]
+
+    let Some(nn) = get_global_nn() else {
+        return 5;
     };
-    
-    // Convert output to priority (0-9, lower is higher priority)
-    let score = result[0].max(0.0).min(1.0);
-    (score * 9.0) as u8
+    let result = nn.predict(features);
+    let score = result[0];
+    if !score.is_finite() {
+        return 5;
+    }
+
+    (score.clamp(0.0, 1.0) * 9.0) as u8
 }
 
 /// Example: Detect anomalous system behavior
@@ -199,22 +204,29 @@ pub fn detect_anomaly(metrics: &[f32]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_layer_creation() {
         let layer = Layer::new(4, 8);
         assert_eq!(layer.output_size(), 8);
     }
-    
+
+    #[test]
+    fn missing_global_model_returns_neutral_priority() {
+        *GLOBAL_NN.lock() = None;
+        NN_INITIALIZED.store(true, Ordering::Release);
+        assert_eq!(predict_scheduling_priority(&[0.5; 8]), 5);
+    }
+
     #[test]
     fn test_network_forward() {
         let mut nn = NeuralNetwork::new();
         nn.add_layer(4, 8);
         nn.add_layer(8, 2);
-        
+
         let input = [0.5, 0.3, 0.7, 0.1];
         let output = nn.predict(&input);
-        
+
         assert_eq!(output.len(), 16);
     }
 }
