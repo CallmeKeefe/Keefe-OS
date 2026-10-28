@@ -2,7 +2,7 @@
 
 **KeefeOS is not an installable end-user OS.** Do not use these commands to install on physical hardware, dual-boot, or write an image to a disk containing data.
 
-The most recent completed passing CI run before consolidation was [40606689369](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40606689369) on commit `adc98ccdd429cb787a7676133fdb95a1540a375c` (PR #27 was closed in favor of [PR #28](https://github.com/CallmeKeefe/Keefe-OS/pull/28)). It passed 22 boot-protocol tests, 47 kernel unit tests, RustSec cargo-audit, Clippy checks, target builds, image packaging, and x86-64 QEMU/OVMF boots at 256 MiB, 512 MiB, and 1 GiB RAM, each showing the firmware-rendered GOP splash and kernel serial marker. These are development tests, not proof of physical-device compatibility. Direct kernel framebuffer writes remain disabled until active page-table mapping and MMIO cache attributes are proven.
+The most recent completed passing CI run for the PR #28 implementation before this documentation refresh was [40663043280](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40663043280) on commit `ea0727c7eb2ba9eb19bd8e3b66ac61e091d4f6c0` (PR #27 was closed in favor of [PR #28](https://github.com/CallmeKeefe/Keefe-OS/pull/28)). It passed 22 boot-protocol tests, 47 kernel unit tests, RustSec cargo-audit, Clippy checks, target builds, image packaging, and x86-64 QEMU/OVMF boots at 256 MiB, 512 MiB, and 1 GiB RAM, each showing the firmware-rendered GOP splash and kernel serial marker. These are development tests, not proof of physical-device compatibility. Direct kernel framebuffer writes remain disabled until active page-table mapping and MMIO cache attributes are proven.
 
 ## Development environment
 
