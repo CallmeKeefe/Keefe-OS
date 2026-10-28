@@ -1,0 +1,186 @@
+name: KeefeOS CI
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "KeefeOS/**"
+      - ".github/**"
+      - ".gitignore"
+      - "README.md"
+      - "CONTRIBUTING.md"
+      - "CONTRIBUTORS.md"
+      - "CODE_OF_CONDUCT.md"
+      - "SUPPORT.md"
+      - "SECURITY.md"
+      - "LICENSE"
+      - "LICENSE-*"
+      - "NEXUS_OS_*.md"
+      - "docs/**"
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Cancel stale runs for the same PR/ref so repeated review commits do not waste CI quota.
+concurrency:
+  group: keefeos-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-package:
+    name: Build kernel, UEFI loader, and disk image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: KeefeOS
+    steps:
+      - name: Check out repository
+        # actions/checkout v7.0.1, pinned to an immutable commit SHA.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Install pinned Rust nightly and bare-metal targets
+        run: |
+          rustup toolchain install nightly-2026-10-27 --profile minimal \
+            --component rust-src \
+            --component llvm-tools \
+            --component rustfmt \
+            --component clippy \
+            --target x86_64-unknown-none \
+            --target x86_64-unknown-uefi
+          rustup show
+
+      - name: Check host-side xtask
+        run: cargo check --locked --package xtask --target x86_64-unknown-linux-gnu
+
+      - name: Test boot protocol and ELF parser
+        run: cargo test --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
+
+      - name: Run host-side kernel unit tests
+        run: cargo test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
+
+      - name: Install pinned RustSec audit tool
+        run: cargo install --locked cargo-audit --version 0.22.2
+
+      - name: Audit Cargo.lock against RustSec advisories
+        run: cargo audit --file Cargo.lock
+
+      - name: Clippy boot protocol
+        run: cargo clippy --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
+
+      - name: Clippy kernel library
+        run: cargo clippy --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
+
+      - name: Compile opt-in legacy VGA console without enabling it in normal builds
+        run: cargo check --locked --package keefeos-kernel --lib --features legacy-vga-console --target x86_64-unknown-linux-gnu
+
+      - name: Clippy host build helper
+        run: cargo clippy --locked --package xtask --target x86_64-unknown-linux-gnu
+
+      - name: Build kernel ELF
+        run: cargo build --locked --package keefeos-kernel --target x86_64-unknown-none
+
+      - name: Build UEFI bootloader
+        run: cargo build --locked --package keefeos-bootloader --target x86_64-unknown-uefi
+
+      - name: Install QEMU and discover OVMF firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 ovmf
+
+          ovmf_code=""
+          ovmf_vars=""
+          for directory in /usr/share/OVMF /usr/share/ovmf /usr/share/qemu; do
+            # Prefer matching 4 MiB firmware pairs, then legacy filenames.
+            if [[ -e "$directory/OVMF_CODE_4M.fd" && -e "$directory/OVMF_VARS_4M.fd" ]]; then
+              ovmf_code="$directory/OVMF_CODE_4M.fd"
+              ovmf_vars="$directory/OVMF_VARS_4M.fd"
+              break
+            fi
+            if [[ -e "$directory/OVMF_CODE.fd" && -e "$directory/OVMF_VARS.fd" ]]; then
+              ovmf_code="$directory/OVMF_CODE.fd"
+              ovmf_vars="$directory/OVMF_VARS.fd"
+              break
+            fi
+          done
+
+          if [[ -z "$ovmf_code" || -z "$ovmf_vars" ]]; then
+            echo "Could not find a matching OVMF code/variables firmware pair."
+            find /usr/share -maxdepth 3 -iname '*ovmf*' -print || true
+            exit 1
+          fi
+
+          echo "OVMF_CODE=$ovmf_code" >> "$GITHUB_ENV"
+          echo "OVMF_VARS=$ovmf_vars" >> "$GITHUB_ENV"
+          echo "Using OVMF code: $ovmf_code"
+          echo "Using OVMF variables: $ovmf_vars"
+
+      - name: Assemble disk image
+        run: cargo run --locked --package xtask --target x86_64-unknown-linux-gnu -- image
+
+      - name: QEMU/OVMF boot and splash compatibility matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Vary RAM size to exercise firmware memory maps and allocator assumptions.
+          # Stop each VM as soon as the serial boot marker appears; a halted kernel
+          # is expected and is not treated as a QEMU process failure.
+          for memory in 256 512 1024; do
+            vars_file="OVMF_VARS_${memory}M.test.fd"
+            serial_log="qemu-serial-${memory}M.log"
+            cp "$OVMF_VARS" "$vars_file"
+            echo "Testing QEMU/OVMF with ${memory} MiB RAM..."
+            qemu-system-x86_64 -machine q35 -m "${memory}M" -cpu qemu64 -drive "if=pflash,format=raw,readonly=on,file=$OVMF_CODE" -drive "if=pflash,format=raw,file=$vars_file" -drive "format=raw,file=target/keefeos.img" -boot order=c -display none -serial stdio -no-reboot > "$serial_log" 2>&1 &
+            qemu_pid=$!
+
+            marker_seen=0
+            for attempt in $(seq 1 120); do
+              if grep -Fq "KEEFEOS-KERNEL-BOOT-OK" "$serial_log"; then
+                marker_seen=1
+                break
+              fi
+              if ! kill -0 "$qemu_pid" 2>/dev/null; then
+                wait "$qemu_pid" || true
+                break
+              fi
+              sleep 0.1
+            done
+
+            if [[ "$marker_seen" -ne 1 ]]; then
+              kill -TERM "$qemu_pid" 2>/dev/null || true
+              wait "$qemu_pid" || true
+              cat "$serial_log"
+              echo "FAIL: kernel boot milestone missing with ${memory} MiB RAM"
+              exit 1
+            fi
+
+            if ! grep -Fq "UEFI GOP splash drawn through firmware BLT" "$serial_log"; then
+              kill -TERM "$qemu_pid" 2>/dev/null || true
+              wait "$qemu_pid" || true
+              cat "$serial_log"
+              echo "FAIL: firmware GOP splash missing with ${memory} MiB RAM"
+              exit 1
+            fi
+
+            kill -TERM "$qemu_pid" 2>/dev/null || true
+            wait "$qemu_pid" || true
+            echo "PASS: ${memory} MiB RAM boot marker and GOP splash verified."
+            cat "$serial_log"
+          done
+
+      - name: Upload generated disk image and serial log
+        # actions/upload-artifact v7.0.2, pinned to an immutable commit SHA.
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: keefeos-disk-image
+          path: |
+            KeefeOS/target/keefeos.img
+            KeefeOS/qemu-serial-*.log
+          if-no-files-found: warn
+          retention-days: 7
