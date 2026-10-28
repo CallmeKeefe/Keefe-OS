@@ -550,7 +550,7 @@ mod tests {
     fn contiguous_allocation_never_bridges_a_physical_hole() {
         let map = [
             region(UEFIMemoryType::CONVENTIONAL, 0x10_0000, 0x2000),
-            region(UEFIMemoryType::CONVENTIONAL, 0x20_0000, 0x2000),
+            region(UEFIMemoryType::CONVENTIONAL, 0x20_0000, 0x1000),
         ];
         let mut alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
 
