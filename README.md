@@ -28,7 +28,7 @@ This verifies three QEMU RAM profiles using the same x86-64 QEMU/OVMF setup. It 
 | Area | Status |
 |---|---|
 | BootInfo ABI and bounded ELF64 parser | 22 protocol tests passed |
-| Kernel unit tests | 47 passed |
+| Kernel unit tests | 51 passed |
 | Kernel / UEFI loader builds | Passed in the cited CI run |
 | QEMU/OVMF early boot | Passed with 256 MiB, 512 MiB, and 1 GiB RAM in run 40698180312; current `main` requires a fresh result |
 | UEFI visual boot splash | Passed using firmware GOP BLT before ExitBootServices |
@@ -40,13 +40,15 @@ This verifies three QEMU RAM profiles using the same x86-64 QEMU/OVMF setup. It 
 | Secure boot, authenticated cryptography, capability signatures | Not implemented; sensitive APIs fail closed |
 | Vulnerability scanner / attack detector | Placeholder interfaces; empty results do not mean a clean system |
 | ARM64, RISC-V, mobile devices | Not supported |
-| CodeQL static analysis | Workflow added for Rust and GitHub Actions; first result not yet verified |\n| End-user installer / recovery / upgrades | Not implemented |
+| CodeQL static analysis | Workflow added for Rust and GitHub Actions; first result not yet verified |
+| End-user installer / recovery / upgrades | Not implemented |
 
 Check [GitHub Actions](https://github.com/CallmeKeefe/Keefe-OS/actions) for the latest result. Results from later commits may differ.
 
 ## Repository layout
 
-- `.github/workflows/codeql.yml` — pinned CodeQL analysis for Rust and GitHub Actions; initial result pending.\n- `KeefeOS/boot-protocol` — versioned BootInfo ABI and bounds-checked ELF64 parser.
+- `.github/workflows/codeql.yml` — pinned CodeQL analysis for Rust and GitHub Actions; initial result pending.
+- `KeefeOS/boot-protocol` — versioned BootInfo ABI and bounds-checked ELF64 parser.
 - `KeefeOS/bootloader` — UEFI loader and firmware-rendered boot splash.
 - `KeefeOS/kernel` — x86-64 kernel, memory management, interrupt setup, and experimental modules.
 - `KeefeOS/xtask` — host build, FAT image packaging, and QEMU helper.
@@ -68,7 +70,9 @@ sudo apt-get update
 sudo apt-get install -y qemu-system-x86 ovmf
 ```
 
-The repository has known workspace-wide Rust formatting drift tracked in issue #23; `cargo fmt --all -- --check` may fail on the existing baseline and is not currently a green CI gate. Format the files you change and distinguish pre-existing formatting differences from new ones.\n\nFrom the workspace directory:
+The repository has known workspace-wide Rust formatting drift tracked in issue #23; `cargo fmt --all -- --check` may fail on the existing baseline and is not currently a green CI gate. Format the files you change and distinguish pre-existing formatting differences from new ones.
+
+From the workspace directory:
 
 ```sh
 cd KeefeOS
