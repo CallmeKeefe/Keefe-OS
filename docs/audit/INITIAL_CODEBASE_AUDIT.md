@@ -1,7 +1,7 @@
 # KeefeOS audit and remediation status
 
 **Initial audit baseline:** `98a7f75cb8273037615ae0fe29ac70aa94bbce8e`  
-**Latest passing audit-branch commit:** `adc98ccdd429cb787a7676133fdb95a1540a375c` (PR #27; not merged at the time of this evidence)  
+**Most recent completed passing evidence:** `adc98ccdd429cb787a7676133fdb95a1540a375c` (historical run before consolidation; PR #27 was closed in favor of [PR #28](https://github.com/CallmeKeefe/Keefe-OS/pull/28)).  
 **CI evidence:** [run 40606689369](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40606689369)
 
 This is an evidence-based engineering status, not a formal verification or security certification.

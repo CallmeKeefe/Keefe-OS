@@ -4,7 +4,7 @@ KeefeOS is an experimental x86-64 bare-metal kernel and UEFI loader. Early boot 
 
 ## Latest verified status
 
-[GitHub Actions run 40606689369](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40606689369), audit-branch commit `adc98ccdd429cb787a7676133fdb95a1540a375c` (PR #27; not merged at the time of this evidence), passed 22 boot-protocol tests and 47 kernel unit tests, the host helper check, RustSec cargo-audit, Clippy checks, optional legacy-VGA compilation, both target builds, image packaging, and QEMU/OVMF boot/splash tests at 256 MiB, 512 MiB, and 1 GiB RAM. The kernel emitted `KEEFEOS-KERNEL-BOOT-OK` in all three profiles.
+The most recent completed passing evidence before consolidation is [GitHub Actions run 40606689369](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40606689369) on commit `adc98ccdd429cb787a7676133fdb95a1540a375c` (PR #27 was closed in favor of [PR #28](https://github.com/CallmeKeefe/Keefe-OS/pull/28)). That run passed 22 boot-protocol tests and 47 kernel unit tests, the host helper check, RustSec cargo-audit, Clippy checks, optional legacy-VGA compilation, both target builds, image packaging, and QEMU/OVMF boot/splash tests at 256 MiB, 512 MiB, and 1 GiB RAM. The kernel emitted `KEEFEOS-KERNEL-BOOT-OK` in all three profiles.
 
 The loader draws a UEFI GOP splash using firmware BLT before ExitBootServices. Direct kernel framebuffer writes remain disabled until active page-table mapping and MMIO cache attributes are proven; a reserved UEFI memory descriptor alone is insufficient. The kernel is linked for a fixed **32–64 MiB x86-64 load window**; relocation is not implemented.
 
