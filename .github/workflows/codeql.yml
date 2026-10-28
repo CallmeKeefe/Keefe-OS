@@ -11,6 +11,11 @@ on:
 
 # Keep workflow-wide permissions read-only. The analyze job adds only the
 # security-events permission required to upload CodeQL results.
+# Cancel stale scans for the same branch/PR to conserve CI minutes.
+concurrency:
+  group: codeql-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   actions: read
   contents: read
