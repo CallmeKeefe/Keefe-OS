@@ -6,7 +6,7 @@
 
 ## Latest verified milestone
 
-**Latest full passing CI:** [run 40605994765](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40605994765), commit `b55a9575690925a6ec2304b27a79df1b591b4b3d` (PR #27 remains open and unmerged).
+**Latest full passing CI:** [run 40606689369](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40606689369), commit `adc98ccdd429cb787a7676133fdb95a1540a375c` (PR #27 remains open and unmerged).
 
 The run passed 22 boot-protocol tests and 47 kernel unit tests, the host helper check, RustSec `cargo-audit` against the locked dependency set, Clippy for the boot protocol/kernel/helper, the optional legacy-VGA compile check, kernel and UEFI-loader builds, image packaging, and the QEMU/OVMF boot matrix at **256 MiB, 512 MiB, and 1 GiB RAM**. Each profile required the firmware-rendered GOP splash and `KEEFEOS-KERNEL-BOOT-OK`. Direct kernel framebuffer writes remain disabled until active mapping and MMIO cache attributes are proven.
 
@@ -28,7 +28,7 @@ This verifies three QEMU RAM profiles using the same x86-64 QEMU/OVMF setup. It 
 | Area | Status |
 |---|---|
 | BootInfo ABI and bounded ELF64 parser | 22 protocol tests passed |
-| Kernel unit tests | 31 passed |
+| Kernel unit tests | 47 passed |
 | Kernel / UEFI loader builds | Passed in the cited CI run |
 | QEMU/OVMF early boot | Passed with 256 MiB, 512 MiB, and 1 GiB RAM |
 | UEFI visual boot splash | Passed using firmware GOP BLT before ExitBootServices |
