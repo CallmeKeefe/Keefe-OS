@@ -611,4 +611,4 @@ unsafe impl x86_64::structures::paging::FrameAllocator<x86_64::structures::pagin
             x86_64::structures::paging::PhysFrame::from_start_address(physical).ok()
         })
     }
-
+}
