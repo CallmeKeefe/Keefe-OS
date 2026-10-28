@@ -57,6 +57,12 @@ jobs:
       - name: Run host-side kernel unit tests
         run: cargo test --locked --package keefeos-kernel --lib --target x86_64-unknown-linux-gnu
 
+      - name: Install pinned RustSec audit tool
+        run: cargo install --locked cargo-audit --version 0.22.2
+
+      - name: Audit Cargo.lock against RustSec advisories
+        run: cargo audit --file Cargo.lock
+
       - name: Clippy boot protocol
         run: cargo clippy --locked --package keefeos-boot-protocol --target x86_64-unknown-linux-gnu
 
