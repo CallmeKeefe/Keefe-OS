@@ -2,7 +2,7 @@
 
 **Snapshot date:** 2026-10-28  
 **Baseline main commit:** `3c474110c427233c0d6b73373848fd7bb34d4142`  
-**Remote branches in snapshot:** 19, including `main` and the active audit branch.  
+**Remote branches in snapshot:** 20, including `main`, the closed duplicate audit branch, and the consolidated PR #28 branch.  
 **Important:** comparisons below are against the baseline main commit before the current architecture/security PR. They are not a reason to delete branches without checking the exact latest remote state.
 
 ## Branch inventory against baseline main
@@ -27,9 +27,10 @@
 | `security-vulnerability-assessment-82d9d` | 0 | 63 | Behind only; no unique commits |
 | `uefi-kernel-boot-fixes-6dac8` | 0 | 56 | Behind only; no unique commits |
 | `ultimate-os-development-blueprint-9a520` | 1 | 72 | Unique documentation commit; contains unsupported security/compliance claims; do not merge as-is |
-| `audit/architecture-security-2026-10` | Active | — | Current review branch; not part of the baseline comparison |
+| `audit/architecture-security-2026-10` | 15 | 0 | PR #27 closed as duplicate; no changes merged to main. Its relevant fixes were ported to PR #28. |
+| `audit/architecture-security-review-clean-2026-10` | 15 | 0 | Active consolidated review branch for PR #28; pending fresh CI and maintainer review |
 
-The comparison indicates 14 older branches with no unique commits and 3 old branches with one unique commit each. A zero-ahead comparison means there is no unique commit to merge relative to the selected baseline; it does not mean the branch is protected from collaborators or references.
+The baseline comparison indicates 14 older branches with no unique commits and 3 old branches with one unique commit each. The two audit branches are separate from those historical branches: PR #27 is closed unmerged, while PR #28 is the active consolidated review. A zero-ahead comparison means there is no unique commit to merge relative to the selected baseline; it does not mean the branch is protected from collaborators or references.
 
 ## Unique commits reviewed
 
