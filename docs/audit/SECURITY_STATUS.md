@@ -2,6 +2,10 @@
 
 **Status: INCOMPLETE — NOT A SECURITY BOUNDARY**
 
+**CodeQL status:** The dedicated `.github/workflows/codeql.yml` workflow is configured for Rust and GitHub Actions using pinned immutable action SHAs. Its first scan/result upload has not yet been confirmed. Do not describe the repository as CodeQL-clean until a successful run and uploaded results are visible.
+
+**Revision scope:** The passing RustSec run cited above applies to PR-head commit `9cfbbff013765ca88b3a999471ab2248787b1308`, not later `main` revisions.
+
 | Control | Status | Safe behavior |
 |---|---|---|
 | ELF64 boot image validation | Parser implemented; unit tests added | Rejects malformed header/table bounds, unsupported machine, invalid segment sizes, overlapping segments, out-of-range load addresses, and invalid entry points. |
