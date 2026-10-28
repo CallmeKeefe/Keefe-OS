@@ -1,61 +1,61 @@
 # KeefeOS branch consolidation report
 
-**Snapshot date:** 2026-10-28  
-**Baseline main commit:** `3c474110c427233c0d6b73373848fd7bb34d4142`  
-**Remote branches in snapshot:** 20, including `main`, the closed duplicate audit branch, and the consolidated PR #28 branch.  
-**Important:** comparisons below are against the baseline main commit before the current architecture/security PR. They are not a reason to delete branches without checking the exact latest remote state.
+**Snapshot date:** 2026-10-29  
+**Current `main` HEAD:** `c27a616c7330702c65213f185a0dec41810a6b4d`  
+**Remote branches observed:** 20, including `main`  
+**Open pull requests:** the connected GitHub search returned none at the time of this snapshot.
 
-## Branch inventory against baseline main
+This report records branch graph comparisons against the current `main` HEAD. Commit counts are not the same as missing code: previous work was consolidated through pull requests, and a squash merge can leave old branch histories looking divergent even when the changes are already in `main`. Do not merge or delete a divergent branch based on counts alone.
 
-| Branch | Ahead | Behind | Disposition |
+## Current inventory
+
+| Branch | Ahead of main | Behind main | Current disposition |
 |---|---:|---:|---|
-| `main` | — | — | Canonical branch |
-| `aegisos-kernel-design-e9020` | 0 | 79 | Behind only; no unique commits |
-| `audit/installation-readiness-2026-10-27` | 0 | 19 | Behind only; no unique commits |
-| `continuous-improvement-process-0743a` | 0 | 67 | Behind only; no unique commits |
-| `cpu-exceptions-and-idt-implementation-c01c1` | 1 | 78 | Unique interrupt commit; reviewed, do not merge as-is |
-| `docs/community-publication-prep-2026-10` | 0 | 1 | Community documentation PR #18 merged; branch is now stale |
-| `docs/installation-guide-2026-10` | 0 | 17 | Documentation PR #17 merged; branch is stale |
-| `fix/installability-security-gates` | 0 | 20 | Behind only; no unique commits |
-| `improve-all-branch-codes-b6a21` | 0 | 61 | Behind only; no unique commits |
-| `improvement-suggestions-40545` | 0 | 65 | Behind only; no unique commits |
-| `memory-management-implementation-eecab` | 0 | 77 | Behind only; no unique commits |
-| `microkernel-os-development-da1f5` | 1 | 76 | Unique scheduler/context-switch commit; reviewed, do not merge as-is |
-| `next-gen-secure-os-enhancement-1998a` | 0 | 71 | Behind only; no unique commits |
-| `os-development-and-deployment-guide-0841e` | 0 | 69 | Behind only; no unique commits |
-| `os-enhancement-with-ai-integration-826cf` | 0 | 73 | Behind only; no unique commits |
-| `security-vulnerability-assessment-82d9d` | 0 | 63 | Behind only; no unique commits |
-| `uefi-kernel-boot-fixes-6dac8` | 0 | 56 | Behind only; no unique commits |
-| `ultimate-os-development-blueprint-9a520` | 1 | 72 | Unique documentation commit; contains unsupported security/compliance claims; do not merge as-is |
-| `audit/architecture-security-2026-10` | 15 | 0 | PR #27 closed as duplicate; no changes merged to main. Its relevant fixes were ported to PR #28. |
-| `audit/architecture-security-review-clean-2026-10` | 15 | 0 | Active consolidated review branch for PR #28; pending fresh CI and maintainer review |
+| `main` | — | — | Canonical branch; keep |
+| `aegisos-kernel-design-e9020` | 0 | 80 | Behind only; no unique commits reported by graph comparison |
+| `audit/installation-readiness-2026-10-27` | 0 | 20 | Behind only; no unique commits reported |
+| `continuous-improvement-process-0743a` | 0 | 68 | Behind only; no unique commits reported |
+| `docs/community-publication-prep-2026-10` | 0 | 2 | Behind only; community documentation is already present on main |
+| `docs/installation-guide-2026-10` | 0 | 18 | Behind only; installation guide is already present on main |
+| `fix/installability-security-gates` | 0 | 21 | Behind only; no unique commits reported |
+| `improve-all-branch-codes-b6a21` | 0 | 62 | Behind only; no unique commits reported |
+| `improvement-suggestions-40545` | 0 | 66 | Behind only; no unique commits reported |
+| `memory-management-implementation-eecab` | 0 | 78 | Behind only; no unique commits reported |
+| `next-gen-secure-os-enhancement-1998a` | 0 | 72 | Behind only; no unique commits reported |
+| `os-development-and-deployment-guide-0841e` | 0 | 70 | Behind only; no unique commits reported |
+| `os-enhancement-with-ai-integration-826cf` | 0 | 74 | Behind only; no unique commits reported |
+| `security-vulnerability-assessment-82d9d` | 0 | 64 | Behind only; no unique commits reported |
+| `uefi-kernel-boot-fixes-6dac8` | 0 | 57 | Behind only; no unique commits reported |
+| `cpu-exceptions-and-idt-implementation-c01c1` | 1 | 79 | One unique commit; reviewed below; do not merge as-is |
+| `microkernel-os-development-da1f5` | 1 | 77 | One unique commit; reviewed below; do not merge as-is |
+| `ultimate-os-development-blueprint-9a520` | 1 | 73 | One unique commit; reviewed below; do not merge as-is |
+| `audit/architecture-security-2026-10` | 107 | 1 | Diverged audit history; former duplicate PR #27. Its relevant fixes were ported to the consolidated review work. Compare the actual tree before deletion |
+| `audit/architecture-security-review-clean-2026-10` | 38 | 1 | Diverged consolidated-review history associated with PR #28. Compare the actual tree and current PR state before deletion |
 
-The baseline comparison indicates 14 older branches with no unique commits and 3 old branches with one unique commit each. The two audit branches are separate from those historical branches: PR #27 is closed unmerged, while PR #28 is the active consolidated review. A zero-ahead comparison means there is no unique commit to merge relative to the selected baseline; it does not mean the branch is protected from collaborators or references.
-
-## Unique commits reviewed
+## Unique legacy commits reviewed
 
 ### CPU / IDT — `29f96e2c0326996092b24e8867b17a7cbc28e929`
 
-The change assigns the double-fault stack to TSS array index 1 while the IDT requests IST index 1. In x86-64, IDT IST index 1 selects TSS IST array slot 0, so this assignment is inconsistent. The change also renames an initializer call without a matching exported interface in its accompanying tree. Do not merge without correcting and testing.
+The change assigns the double-fault stack to TSS array index 1 while the IDT requests IST index 1. In x86-64, IDT IST index 1 selects TSS IST array slot 0, so these indices are inconsistent. The branch also renames an initializer call without a matching exported interface in its accompanying tree. Do not merge without correcting and testing this code.
 
 ### Multitasking — `00d4c548bec829972c171fcc3d57d31fb4605ed2`
 
-The branch adds timer, TCB, and context-switch prototypes. The reviewed diff contains hard-coded structure offsets, complex raw-pointer/register handling, a context switch while holding a global spinlock, and no integrated timer delivery path. This is architecture-sensitive code and should not be merged without a written ABI, stack and interrupt invariants, isolated QEMU tests, and a careful unsafe-code review.
+The branch adds timer, TCB, and context-switch prototypes. The reviewed diff contains hard-coded structure offsets, complex raw-pointer/register handling, a context switch while holding a global spinlock, and no integrated timer delivery path. Do not merge without a written ABI, stack/interrupt/lock invariants, isolated QEMU tests, and a dedicated unsafe-code review.
 
-### Security/blueprint documentation — `145cc55d0cd71eaa9d999140e5607af2d72ecfa1`
+### Security / blueprint documentation — `145cc55d0cd71eaa9d999140e5607af2d72ecfa1`
 
-The unique commit adds long-form legal/security documentation that states or implies secure boot, memory isolation, compliance, and a completed security audit without matching implementation evidence. Some contact/repository details are not verified. These claims were not imported as facts. The current root security status is authoritative.
+The unique commit adds long-form documentation that states or implies secure boot, memory isolation, compliance, or a completed security audit without matching implementation evidence. Those claims were not imported as facts. The current root security status is authoritative.
 
-## Consolidation decision
+## Recommended disposition
 
-- Keep `main` as the single canonical source branch.
-- Do not merge the three unique commits wholesale. Extract individual fixes only after current-code review and tests.
-- Branches for merged PR #17 and #18 can be deleted after confirming no workflow, issue, release, or contributor still depends on them.
-- Remove behind-only branches after a final fresh comparison and owner confirmation.
-- Never force-push or rewrite main history to consolidate branches.
+1. Keep `main` as the canonical source branch. Do not force-push or rewrite its history.
+2. Do not merge the three unique legacy commits wholesale. Extract individual fixes only after current-code review and tests.
+3. Perform a final tree-level review of the two divergent audit branches. Their commit graph is not sufficient to determine whether any tree changes are still missing from `main`.
+4. The 14 behind-only branches can be considered for deletion after confirming that no contributor, workflow, release, or open review still depends on them.
+5. After each deletion, refresh the remote branch list and confirm `main` remains the only persistent branch.
 
-## Deletion capability limitation
+## Remote deletion limitation
 
-The GitHub integration available for this review can read branches, compare commits, create branches, and update files, but it does not expose a branch-delete action. **No remote branch was deleted in this audit.** Use GitHub's Branches page or an authorized Git client to remove the confirmed stale branches after reviewing this inventory.
+The GitHub integration available in this session supports branch search/comparison and file/commit operations, but does **not** expose a branch-delete action. No remote branch was deleted in this audit. Branch cleanup therefore remains incomplete and must be performed through GitHub's Branches page or an authorized Git client after the above review. No branch was force-rewritten to imitate deletion.
 
-This is an API-backed branch/unique-commit review, not a claim that every line in every historical branch has been exhaustively audited.
+This is an API-backed branch and unique-commit review, not a claim that every line in every historical branch has been exhaustively audited.
