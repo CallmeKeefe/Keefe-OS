@@ -8,7 +8,9 @@ The latest completed passing run confirmed from GitHub records is [Actions run 4
 
 The loader draws a UEFI GOP splash using firmware BLT before ExitBootServices. Direct kernel framebuffer writes remain disabled until active page-table mapping and MMIO cache attributes are proven; a reserved UEFI memory descriptor alone is insufficient. The kernel is linked for a fixed **32–64 MiB x86-64 load window**; relocation is not implemented.
 
-A CodeQL workflow for Rust and GitHub Actions is configured in `.github/workflows/codeql.yml`; its first scan result is not yet verified.\n\n## Workspace packages
+A CodeQL workflow for Rust and GitHub Actions is configured in `.github/workflows/codeql.yml`; its first scan result is not yet verified.
+
+## Workspace packages
 
 - `boot-protocol`: versioned BootInfo and bounded ELF64 parser.
 - `bootloader`: UEFI application and kernel segment loading.
