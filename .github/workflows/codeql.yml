@@ -3,6 +3,11 @@ name: CodeQL security analysis
 on:
   push:
     branches: ["main"]
+    # CodeQL examines source and workflow changes, not documentation-only edits.
+    paths:
+      - "KeefeOS/**"
+      - ".github/workflows/**"
+      - ".github/codeql/**"
   pull_request:
     branches: ["main"]
   schedule:
