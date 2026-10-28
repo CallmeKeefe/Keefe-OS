@@ -4,7 +4,7 @@ This guide covers source builds, tests, and a disposable QEMU image. It does not
 
 ## Verified test path
 
-[GitHub Actions run 40602581622](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40602581622) on audit-branch commit `67d692063c37c975e3799c55a8e1538d36058b04` (PR #27; not merged at the time of this evidence) passed the boot-protocol tests and kernel tests, the host helper check, both target builds, image packaging, and QEMU/OVMF boot and splash checks at 256 MiB, 512 MiB, and 1 GiB RAM. Each profile logged `UEFI GOP splash drawn through firmware BLT` and `KEEFEOS-KERNEL-BOOT-OK`.
+[GitHub Actions run 40605994765](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40605994765) on audit-branch commit `b55a9575690925a6ec2304b27a79df1b591b4b3d` (PR #27; not merged at the time of this evidence) passed 22 boot-protocol tests and 47 kernel tests, RustSec cargo-audit, the host helper check, Clippy for the boot protocol/kernel/helper, optional legacy-VGA compilation, both target builds, image packaging, and QEMU/OVMF boot and splash checks at 256 MiB, 512 MiB, and 1 GiB RAM. Each profile logged `UEFI GOP splash drawn through firmware BLT` and `KEEFEOS-KERNEL-BOOT-OK`.
 
 This is still a single QEMU/OVMF firmware/device setup with varying RAM sizes. Physical machines, other UEFI implementations, native Windows/macOS hosts, ARM64, RISC-V, phones, and other hypervisors are not verified. The loader uses a fixed 32–64 MiB x86-64 kernel load window, not a relocatable image.
 

@@ -1,16 +1,16 @@
 # KeefeOS audit and remediation status
 
 **Initial audit baseline:** `98a7f75cb8273037615ae0fe29ac70aa94bbce8e`  
-**Latest passing audit-branch commit:** `67d692063c37c975e3799c55a8e1538d36058b04` (PR #27; not merged at the time of this evidence)  
-**CI evidence:** [run 40602581622](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40602581622)
+**Latest passing audit-branch commit:** `b55a9575690925a6ec2304b27a79df1b591b4b3d` (PR #27; not merged at the time of this evidence)  
+**CI evidence:** [run 40605994765](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40605994765)
 
 This is an evidence-based engineering status, not a formal verification or security certification.
 
 ## Current verified state
 
-CI run 40602581622 passed 22 boot-protocol tests, 31 kernel tests, host helper check, kernel and UEFI-loader builds, FAT image assembly, and QEMU/OVMF smoke tests at **256 MiB, 512 MiB, and 1 GiB RAM**. Each serial log contained `UEFI GOP splash drawn through firmware BLT` and `KEEFEOS-KERNEL-BOOT-OK`.
+CI run 40605994765 passed 22 boot-protocol tests, 47 kernel tests, RustSec cargo-audit against the locked dependency set, host helper check, Clippy checks, optional legacy-VGA feature compilation, kernel and UEFI-loader builds, FAT image assembly, and QEMU/OVMF smoke tests at **256 MiB, 512 MiB, and 1 GiB RAM**. Each serial log contained `UEFI GOP splash drawn through firmware BLT` and `KEEFEOS-KERNEL-BOOT-OK`.
 
-The UEFI splash is rendered by firmware before ExitBootServices. The kernel's direct framebuffer console is still disabled because the final UEFI map has a gap over the GOP buffer at `0x80000000`. The kernel correctly refuses direct writes to a range whose mapping/reservation cannot be proven.
+The UEFI splash is rendered by firmware before ExitBootServices. Direct kernel framebuffer writes remain disabled until active page-table mapping and MMIO cache attributes are proven. Firmware memory-map classification alone is not sufficient.
 
 ## Historical baseline findings
 

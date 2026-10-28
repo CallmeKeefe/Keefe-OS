@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml/badge.svg?branch=main)](https://github.com/CallmeKeefe/Keefe-OS/actions/workflows/blank.yml) ![Experimental](https://img.shields.io/badge/status-experimental-orange) ![Architecture x86-64](https://img.shields.io/badge/architecture-x86--64-blue) ![Security incomplete](https://img.shields.io/badge/security-incomplete-red)
 
-> **Experimental OS prototype.** Early boot is verified only under x86-64 QEMU + OVMF UEFI. Physical installation and production use are not supported. The kernel uses a fixed load window; the persistent kernel framebuffer console remains disabled unless firmware memory-map coverage can be proved.
+> **Experimental OS prototype.** Early boot is verified only under x86-64 QEMU + OVMF UEFI. Physical installation and production use are not supported. The kernel uses a fixed load window; the persistent kernel framebuffer console remains disabled until target-specific page-table mapping and MMIO cache attributes are proven; a reserved UEFI memory descriptor alone is insufficient.
 
 ## Latest verified milestone
 
-**Latest passing audit-branch CI:** [run 40602581622](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40602581622), commit `67d692063c37c975e3799c55a8e1538d36058b04` (PR #27; not yet merged at the time of this evidence).
+**Latest full passing CI:** [run 40605994765](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40605994765), commit `b55a9575690925a6ec2304b27a79df1b591b4b3d` (PR #27 remains open and unmerged).
 
-This run passed the boot-protocol/ELF tests, kernel unit tests, host helper check, kernel and UEFI-loader builds, image packaging, and the QEMU/OVMF boot matrix at **256 MiB, 512 MiB, and 1 GiB RAM**. It includes the checked-address conversion and physical frame allocator regression tests. In every profile, the firmware rendered the UEFI GOP splash before ExitBootServices and the kernel emitted `KEEFEOS-KERNEL-BOOT-OK`.
+The run passed 22 boot-protocol tests and 47 kernel unit tests, the host helper check, RustSec `cargo-audit` against the locked dependency set, Clippy for the boot protocol/kernel/helper, the optional legacy-VGA compile check, kernel and UEFI-loader builds, image packaging, and the QEMU/OVMF boot matrix at **256 MiB, 512 MiB, and 1 GiB RAM**. Each profile required the firmware-rendered GOP splash and `KEEFEOS-KERNEL-BOOT-OK`. Direct kernel framebuffer writes remain disabled until active mapping and MMIO cache attributes are proven.
 
 Representative serial output:
 
@@ -33,7 +33,7 @@ This verifies three QEMU RAM profiles using the same x86-64 QEMU/OVMF setup. It 
 | QEMU/OVMF early boot | Passed with 256 MiB, 512 MiB, and 1 GiB RAM |
 | UEFI visual boot splash | Passed using firmware GOP BLT before ExitBootServices |
 | Kernel load address | Fixed 32–64 MiB identity-mapped window; relocation is not implemented |
-| Direct kernel framebuffer console | Safely disabled: final UEFI map has a gap across the GOP range |
+| Direct kernel framebuffer console | **Disabled by design**: a reserved UEFI descriptor does not prove active virtual mapping or correct MMIO cache attributes; firmware draws the splash before `ExitBootServices`. |
 | Physical frame allocator | Regression tests exist; firmware-map and runtime stress coverage remain limited |
 | Paging / higher-half model | Experimental; full page-table lifecycle and isolation are not verified |
 | ACPI, PCI, storage, USB, network, input, and power management | No general driver stack |
