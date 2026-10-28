@@ -143,7 +143,10 @@ pub fn get_global_nn() -> Option<NeuralNetwork> {
     GLOBAL_NN.lock().as_ref().cloned()
 }
 
-/// Initialize the global neural network with a default configuration
+/// Install an untrained demonstration network with deterministic coefficients.
+///
+/// This is for API experiments only. It is not a trained model and must not
+/// be connected to process scheduling or security decisions.
 pub fn init_global_nn() {
     let nn = NeuralNetwork::new();
     
@@ -155,25 +158,30 @@ pub fn init_global_nn() {
     
     *GLOBAL_NN.lock() = Some(nn_with_layers);
     
-    log::info!("Global neural network initialized (8->16->8->4)");
+    log::warn!("Untrained demonstration network installed (8->16->8->4); not connected to OS scheduling");
 }
 
-/// Example: Predict process scheduling priority based on features
-/// Features: [cpu_usage, memory_pressure, io_wait, nice_value, ...]
+/// Return an experimental priority suggestion from the demonstration network.
+///
+/// This is not a trained scheduling model and is not connected to the OS
+/// scheduler. A missing model or non-finite output returns the neutral default
+/// priority (5); it must not accidentally become highest priority (0).
+/// Priority values range from 0 (highest) through 9 (lowest).
 pub fn predict_scheduling_priority(features: &[f32]) -> u8 {
     if !is_initialized() {
-        return 5; // Default priority
+        return 5;
     }
-    
-    let result = if let Some(nn) = get_global_nn() {
-        nn.predict(features)
-    } else {
-        [0.0; 16]
+
+    let Some(nn) = get_global_nn() else {
+        return 5;
     };
-    
-    // Convert output to priority (0-9, lower is higher priority)
-    let score = result[0].max(0.0).min(1.0);
-    (score * 9.0) as u8
+    let result = nn.predict(features);
+    let score = result[0];
+    if !score.is_finite() {
+        return 5;
+    }
+
+    (score.clamp(0.0, 1.0) * 9.0) as u8
 }
 
 /// Example: Detect anomalous system behavior
@@ -198,7 +206,7 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_layer_creation() {
+    fn test_layer_creation() {\n    #[test]\n    fn missing_global_model_returns_neutral_priority() {\n        *GLOBAL_NN.lock() = None;\n        NN_INITIALIZED.store(true, Ordering::Release);\n        assert_eq!(predict_scheduling_priority(&[0.5; 8]), 5);\n    }\n
         let layer = Layer::new(4, 8);
         assert_eq!(layer.output_size(), 8);
     }
