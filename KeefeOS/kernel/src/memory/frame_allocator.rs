@@ -492,8 +492,10 @@ mod tests {
     #[test]
     fn allocation_skips_physical_holes() {
         let map = [
+            // The kernel reserves the first page, leaving only one free page here.
             region(UEFIMemoryType::CONVENTIONAL, 0x10_0000, 0x2000),
-            region(UEFIMemoryType::CONVENTIONAL, 0x20_0000, 0x2000),
+            // One page in the second range leaves another free page separated by a hole.
+            region(UEFIMemoryType::CONVENTIONAL, 0x20_0000, 0x1000),
         ];
         let mut alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
         assert_eq!(alloc.allocate(), Some(0x10_1000));
