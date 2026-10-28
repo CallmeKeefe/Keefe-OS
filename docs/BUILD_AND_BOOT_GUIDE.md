@@ -15,7 +15,7 @@ KeefeOS currently verifies an x86-64 UEFI early-boot path under QEMU + OVMF. It 
 | Physical x86-64 computers, other hypervisors, legacy BIOS | Not supported/verified for installation |
 | ARM64, RISC-V, phones, consoles, embedded boards | Not supported |
 
-The current CI evidence is listed in [docs/COMPATIBILITY.md](COMPATIBILITY.md). A QEMU boot marker proves only the tested early-boot milestone, not a complete OS or working device drivers.
+The latest confirmed CI evidence is listed in [docs/COMPATIBILITY.md](COMPATIBILITY.md); do not assume it covers later main-branch commits. A QEMU boot marker proves only the tested early-boot milestone, not a complete OS or working device drivers.
 
 ## 2. Prepare an Ubuntu build environment
 
@@ -85,7 +85,7 @@ The image command assembles the project image. **Image creation is not a boot te
 
 ## 6. Verify early boot in QEMU/OVMF
 
-The latest completed passing code run is [GitHub Actions #40663043280](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40663043280) on commit `ea0727c7eb2ba9eb19bd8e3b66ac61e091d4f6c0` on active PR #28. Documentation-only updates may trigger a newer run. It passed 22 boot-protocol tests, 47 kernel unit tests, a RustSec dependency advisory scan of `Cargo.lock`, Clippy checks, both target builds, image packaging, and the QEMU/OVMF three-profile boot matrix. The CI run does not prove a complete OS or physical-device support.
+The latest completed passing code run confirmed from GitHub records is [Actions #40698180312](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40698180312) on PR-head commit `9cfbbff013765ca88b3a999471ab2248787b1308`. It passed 22 boot-protocol tests, 51 kernel unit tests, the RustSec audit, Clippy, both target builds, image packaging, and the QEMU/OVMF three-profile boot matrix. The main branch later advanced to `c27a616c7330702c65213f185a0dec41810a6b4d`; that newer code and subsequent workflow/documentation changes need their own confirmed result. Check [current Actions runs](https://github.com/CallmeKeefe/Keefe-OS/actions). This boot evidence does not prove a complete OS or physical-device support.
 
 The canonical end-to-end test is the repository's [KeefeOS CI workflow](../.github/workflows/keefeos-ci.yml). It builds and packages the image, discovers a matching OVMF firmware code/variables pair, and boots QEMU at 256 MiB, 512 MiB, and 1 GiB RAM. The workflow requires both the firmware splash marker and `KEEFEOS-KERNEL-BOOT-OK` in each serial log.
 
@@ -109,7 +109,7 @@ Do not follow generic OS installation instructions to write the image to a USB s
 
 A future physical-device milestone must first include a tested installer/image layout, documented supported hardware, safe disk selection and confirmation, recovery/rollback procedures, reproducible builds, signed artifacts, and successful non-destructive hardware tests. None of those should be implied by the current QEMU early-boot result.
 
-## 9. Security and feature status
+## 9. Security and feature status\n\nA pinned CodeQL workflow now targets Rust and GitHub Actions under `../.github/workflows/codeql.yml`; its first scan has not yet been verified. A configured scanner is not a clean scan.
 
 Secure-boot signature verification, trusted cryptographic operations, capability verification, real vulnerability scanning, and attack detection are not implemented as reliable security controls. An empty scanner result does not mean a system is clean. See [SECURITY.md](../SECURITY.md), [security status](audit/SECURITY_STATUS.md), and [OS status](audit/OS_STATUS.md).
 
