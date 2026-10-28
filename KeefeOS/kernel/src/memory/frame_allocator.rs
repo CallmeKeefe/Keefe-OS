@@ -151,32 +151,26 @@ impl PhysicalFrameAllocator {
     /// 2. Use trailing_zeros() to find the exact bit position
     /// 3. Set the bit and return the frame address
     pub fn allocate(&mut self) -> Option<usize> {
-        // Search for a free frame (bit = 0)
-        let words_to_scan = self.total_frames.saturating_add(63) / 64;
-        for (word_idx, word) in self.bitmap.iter_mut().take(words_to_scan).enumerate() {
-            if *word != u64::MAX {
-                // This word has at least one free bit
-                let free_bit = word.trailing_ones();
-                if free_bit < 64 {
-                    let frame_idx = word_idx * 64 + free_bit as usize;
-                    
-                    if frame_idx < self.total_frames {
-                        // Mark as allocated
-                        *word |= 1 << free_bit;
-                        self.allocated_count += 1;
-                        
-                        let phys_addr = frame_idx * FRAME_SIZE;
-                        log::trace!("Allocated frame {} at {:#x}", frame_idx, phys_addr);
-                        
-                        return Some(phys_addr);
-                    }
-                }
+        // Search only frames explicitly admitted to the allocation pool.
+        // The eligibility bitmap is a second guard against reserved pages and
+        // against accidentally treating missing bitmap bits as free.
+        for frame_idx in 0..self.total_frames {
+            if !Self::get_bit(&self.bitmap, frame_idx)
+                && Self::get_bit(&self.allocatable, frame_idx)
+            {
+                Self::set_bit(&mut self.bitmap, frame_idx, true);
+                self.allocated_count += 1;
+                let phys_addr = frame_idx * FRAME_SIZE;
+                log::trace!("Allocated frame {} at {:#x}", frame_idx, phys_addr);
+                return Some(phys_addr);
             }
         }
-        
-        // No free frames available
-        log::warn!("Out of physical memory! Allocated: {}/{}",
-                   self.allocated_count, self.total_frames);
+
+        log::warn!(
+            "Out of physical memory! Allocated: {}/{}",
+            self.allocated_count,
+            self.total_frames
+        );
         None
     }
     
@@ -200,42 +194,25 @@ impl PhysicalFrameAllocator {
         if count == 0 || count > self.total_frames {
             return None;
         }
-        
-        // Simple linear search for contiguous free frames
-        let mut consecutive_free = 0;
-        let mut start_idx = None;
-        
-        for frame_idx in 0..self.total_frames {
-            if !Self::get_bit(&self.bitmap, frame_idx) {
-                // Frame is free
-                if consecutive_free == 0 {
-                    start_idx = Some(frame_idx);
-                }
-                consecutive_free += 1;
-                
-                if consecutive_free >= count {
-                    // Found enough contiguous frames
-                    break;
-                }
-            } else {
-                // Frame is allocated, reset counter
-                consecutive_free = 0;
-                start_idx = None;
-            }
-        }
-        
-        if let Some(start) = start_idx {
-            if consecutive_free >= count {
-                // Mark all frames as allocated
-                for i in 0..count {
-                    Self::set_bit(&mut self.bitmap, start + i, true);
+
+        // Test each candidate run without allowing gaps or ineligible frames.
+        // The end is bounded by total_frames due to the candidate range below.
+        for start in 0..=self.total_frames - count {
+            let end = start + count;
+            let run_is_eligible = (start..end).all(|frame_idx| {
+                !Self::get_bit(&self.bitmap, frame_idx)
+                    && Self::get_bit(&self.allocatable, frame_idx)
+            });
+
+            if run_is_eligible {
+                for frame_idx in start..end {
+                    Self::set_bit(&mut self.bitmap, frame_idx, true);
                 }
                 self.allocated_count += count;
-                
                 return Some(start * FRAME_SIZE);
             }
         }
-        
+
         None
     }
     
