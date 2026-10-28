@@ -1,7 +1,7 @@
 # KeefeOS branch consolidation report
 
 **Snapshot date:** 2026-10-29  
-**Comparison baseline (main HEAD before this report update):** `55740b3b5c63bebfe1cf0138c89079f1f84d3a51`  
+**Comparison baseline (main HEAD before this report update):** `979428b8e22e007fdf10397b00e94871d903a049`  
 **Remote branches observed:** 20, including `main`  
 **Open pull requests:** the connected GitHub search returned none at the time of this snapshot.
 
@@ -14,25 +14,25 @@ At this baseline, 14 topic branches are behind-only, three additional branches e
 | Branch | Ahead of baseline | Behind baseline | Current disposition |
 |---|---:|---:|---|
 | `main` | — | — | Canonical branch; keep |
-| `aegisos-kernel-design-e9020` | 0 | 99 | Behind-only; no unique commits reported by graph comparison |
-| `audit/installation-readiness-2026-10-27` | 0 | 39 | Behind-only; no unique commits reported |
-| `continuous-improvement-process-0743a` | 0 | 87 | Behind-only; no unique commits reported |
-| `docs/community-publication-prep-2026-10` | 0 | 21 | Behind-only; community documentation is already present in the baseline |
-| `docs/installation-guide-2026-10` | 0 | 37 | Behind-only; installation guide is already present in the baseline |
-| `fix/installability-security-gates` | 0 | 40 | Behind-only; no unique commits reported |
-| `improve-all-branch-codes-b6a21` | 0 | 81 | Behind-only; no unique commits reported |
-| `improvement-suggestions-40545` | 0 | 85 | Behind-only; no unique commits reported |
-| `memory-management-implementation-eecab` | 0 | 97 | Behind-only; no unique commits reported |
-| `next-gen-secure-os-enhancement-1998a` | 0 | 91 | Behind-only; no unique commits reported |
-| `os-development-and-deployment-guide-0841e` | 0 | 89 | Behind-only; no unique commits reported |
-| `os-enhancement-with-ai-integration-826cf` | 0 | 93 | Behind-only; no unique commits reported |
-| `security-vulnerability-assessment-82d9d` | 0 | 83 | Behind-only; no unique commits reported |
-| `uefi-kernel-boot-fixes-6dac8` | 0 | 76 | Behind-only; no unique commits reported |
-| `cpu-exceptions-and-idt-implementation-c01c1` | 1 | 98 | One unique commit; reviewed below; do not merge as-is |
-| `microkernel-os-development-da1f5` | 1 | 96 | One unique commit; reviewed below; do not merge as-is |
-| `ultimate-os-development-blueprint-9a520` | 1 | 92 | One unique commit; reviewed below; do not merge as-is |
-| `audit/architecture-security-2026-10` | 107 | 20 | Diverged audit history; former duplicate PR #27. Relevant fixes were ported into consolidated review work; compare trees before deletion |
-| `audit/architecture-security-review-clean-2026-10` | 38 | 20 | Diverged audit history associated with PR #28. Compare trees before deletion |
+| `aegisos-kernel-design-e9020` | 0 | 101 | Behind-only; no unique commits reported by graph comparison |
+| `audit/installation-readiness-2026-10-27` | 0 | 41 | Behind-only; no unique commits reported |
+| `continuous-improvement-process-0743a` | 0 | 89 | Behind-only; no unique commits reported |
+| `docs/community-publication-prep-2026-10` | 0 | 23 | Behind-only; community documentation is already present in the baseline |
+| `docs/installation-guide-2026-10` | 0 | 39 | Behind-only; installation guide is already present in the baseline |
+| `fix/installability-security-gates` | 0 | 42 | Behind-only; no unique commits reported |
+| `improve-all-branch-codes-b6a21` | 0 | 83 | Behind-only; no unique commits reported |
+| `improvement-suggestions-40545` | 0 | 87 | Behind-only; no unique commits reported |
+| `memory-management-implementation-eecab` | 0 | 99 | Behind-only; no unique commits reported |
+| `next-gen-secure-os-enhancement-1998a` | 0 | 93 | Behind-only; no unique commits reported |
+| `os-development-and-deployment-guide-0841e` | 0 | 91 | Behind-only; no unique commits reported |
+| `os-enhancement-with-ai-integration-826cf` | 0 | 95 | Behind-only; no unique commits reported |
+| `security-vulnerability-assessment-82d9d` | 0 | 85 | Behind-only; no unique commits reported |
+| `uefi-kernel-boot-fixes-6dac8` | 0 | 78 | Behind-only; no unique commits reported |
+| `cpu-exceptions-and-idt-implementation-c01c1` | 1 | 100 | One unique commit; reviewed below; do not merge as-is |
+| `microkernel-os-development-da1f5` | 1 | 98 | One unique commit; reviewed below; do not merge as-is |
+| `ultimate-os-development-blueprint-9a520` | 1 | 94 | One unique commit; reviewed below; do not merge as-is |
+| `audit/architecture-security-2026-10` | 107 | 22 | Diverged audit history; former duplicate PR #27. Relevant fixes were ported into consolidated review work; compare trees before deletion |
+| `audit/architecture-security-review-clean-2026-10` | 38 | 22 | Diverged audit history associated with PR #28. Compare trees before deletion |
 
 ## Unique legacy commits reviewed
 
