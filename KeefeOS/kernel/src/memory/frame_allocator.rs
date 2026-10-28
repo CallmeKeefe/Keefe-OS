@@ -528,6 +528,34 @@ mod tests {
         assert!(alloc.is_allocated(0x10_0000 / FRAME_SIZE));
         assert!(!alloc.is_allocated(0x10_1000 / FRAME_SIZE));
     }
+
+    #[test]
+    fn double_free_does_not_inflate_free_frame_count() {
+        let map = [region(UEFIMemoryType::CONVENTIONAL, 0x10_0000, 0x3000)];
+        let mut alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
+        let addr = alloc.allocate().expect("one usable frame should be available");
+        let before = alloc.free_count();
+
+        unsafe { alloc.deallocate(addr) };
+        assert_eq!(alloc.free_count(), before + 1);
+
+        unsafe { alloc.deallocate(addr) };
+        assert_eq!(alloc.free_count(), before + 1);
+        assert_eq!(alloc.allocated_count() + alloc.free_count(), alloc.total_frames());
+    }
+
+    #[test]
+    fn contiguous_allocation_never_bridges_a_physical_hole() {
+        let map = [
+            region(UEFIMemoryType::CONVENTIONAL, 0x10_0000, 0x2000),
+            region(UEFIMemoryType::CONVENTIONAL, 0x20_0000, 0x2000),
+        ];
+        let mut alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
+
+        assert_eq!(alloc.allocate_contiguous(2), None);
+        assert_eq!(alloc.allocate(), Some(0x10_1000));
+        assert_eq!(alloc.allocate(), Some(0x20_0000));
+    }
 }
 
 /// Implementation of x86_64's FrameAllocator trait for interoperability
