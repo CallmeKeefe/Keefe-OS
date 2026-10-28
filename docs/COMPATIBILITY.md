@@ -7,8 +7,8 @@ The latest completed passing run confirmed from GitHub records is [run 406981803
 | Platform / firmware | Current status | Evidence / limitation |
 |---|---|---|
 | x86-64 QEMU + OVMF, 256 MiB RAM | **EARLY BOOT VERIFIED** | Kernel marker and firmware GOP splash passed in run 40698180312. |
-| x86-64 QEMU + OVMF, 512 MiB RAM | **EARLY BOOT VERIFIED** | Kernel marker and firmware GOP splash passed in run 40663043280. |
-| x86-64 QEMU + OVMF, 1 GiB RAM | **EARLY BOOT VERIFIED** | Kernel marker and firmware GOP splash passed in run 40663043280. |
+| x86-64 QEMU + OVMF, 512 MiB RAM | **EARLY BOOT VERIFIED** | Kernel marker and firmware GOP splash passed in run 40698180312. |
+| x86-64 QEMU + OVMF, 1 GiB RAM | **EARLY BOOT VERIFIED** | Kernel marker and firmware GOP splash passed in run 40698180312. |
 | Kernel direct framebuffer console | **DISABLED / FAIL-CLOSED** | Direct writes remain disabled until target-specific page-table mapping and MMIO cache attributes are proven; firmware GOP BLT draws the startup splash before `ExitBootServices`. |
 | Physical x86-64 PC with UEFI | NOT VERIFIED / NOT SUPPORTED FOR INSTALLATION | ACPI, PCI/device enumeration, storage/input/network drivers, power handling, and firmware variation need work. |
 | Other UEFI firmware implementations | NOT VERIFIED | No vendor firmware matrix. |
@@ -20,7 +20,9 @@ The latest completed passing run confirmed from GitHub records is [run 406981803
 | Android/iOS phones and tablets | NOT SUPPORTED | No mobile SoC, touch/display stack, power management, or driver support. |
 | Consoles, embedded boards, SBCs | NOT SUPPORTED BY DEFAULT | Each needs a board-specific boot path, memory map, interrupt controller, and drivers. |
 
-A passing result for the latest main revision has not been confirmed in this audit. Check the [current Actions runs](https://github.com/CallmeKeefe/Keefe-OS/actions) before treating any RAM profile as verified for newer commits.\n\n## Next compatibility milestones
+A passing result for the latest main revision has not been confirmed in this audit. Check the [current Actions runs](https://github.com/CallmeKeefe/Keefe-OS/actions) before treating any RAM profile as verified for newer commits.
+
+## Next compatibility milestones
 
 1. Investigate the GOP memory-map gap and design a safe MMIO/page-table mapping before enabling persistent kernel framebuffer writes.
 2. Remove the fixed load-address limitation with a properly tested relocatable kernel, or keep the fixed layout explicitly constrained.
