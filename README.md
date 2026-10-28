@@ -8,7 +8,7 @@
 
 **Most recent completed full CI pass for the PR #28 implementation before the status-documentation refresh:** [run 40663043280](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40663043280), commit `ea0727c7eb2ba9eb19bd8e3b66ac61e091d4f6c0`. PR #27 was closed in favor of consolidated [PR #28](https://github.com/CallmeKeefe/Keefe-OS/pull/28); check PR #28 for the current run.
 
-The run passed 22 boot-protocol tests and 47 kernel unit tests, the host helper check, RustSec `cargo-audit` against the locked dependency set, Clippy for the boot protocol/kernel/helper, the optional legacy-VGA compile check, kernel and UEFI-loader builds, image packaging, and the QEMU/OVMF boot matrix at **256 MiB, 512 MiB, and 1 GiB RAM**. Each profile required the firmware-rendered GOP splash and `KEEFEOS-KERNEL-BOOT-OK`. Direct kernel framebuffer writes remain disabled until active mapping and MMIO cache attributes are proven.
+That run passed 22 boot-protocol tests and 47 kernel unit tests, the host helper check, RustSec `cargo-audit` against the locked dependency set, Clippy for the boot protocol/kernel/helper, the optional legacy-VGA compile check, kernel and UEFI-loader builds, image packaging, and the QEMU/OVMF boot matrix at **256 MiB, 512 MiB, and 1 GiB RAM**. Each profile required the firmware-rendered GOP splash and `KEEFEOS-KERNEL-BOOT-OK`. Direct kernel framebuffer writes remain disabled until active mapping and MMIO cache attributes are proven.
 
 Representative serial output:
 
