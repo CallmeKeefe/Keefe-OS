@@ -574,7 +574,7 @@ mod tests {
             usize::MAX - 0x7ff,
             0x1000,
         )];
-        let alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
+        let mut alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
 
         assert_eq!(alloc.total_frames(), 0);
         assert_eq!(alloc.allocate(), None);
