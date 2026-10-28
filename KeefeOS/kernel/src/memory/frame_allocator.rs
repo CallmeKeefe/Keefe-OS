@@ -581,4 +581,34 @@ unsafe impl x86_64::structures::paging::FrameAllocator<x86_64::structures::pagin
             x86_64::structures::paging::PhysFrame::from_start_address(physical).ok()
         })
     }
+    #[test]
+    fn overflowing_usable_range_is_never_made_allocatable() {
+        // A malformed descriptor whose end wraps must not expose any frame.
+        let map = [region(
+            UEFIMemoryType::CONVENTIONAL,
+            usize::MAX - 0x7ff,
+            0x1000,
+        )];
+        let alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
+
+        assert_eq!(alloc.total_frames(), 0);
+        assert_eq!(alloc.allocate(), None);
+        assert_eq!(alloc.free_count(), 0);
+    }
+
+    #[test]
+    fn contiguous_allocation_rejects_zero_count_and_reserved_gaps() {
+        let map = [
+            region(UEFIMemoryType::CONVENTIONAL, 0x10_0000, 0x2000),
+            region(UEFIMemoryType::RESERVED, 0x10_2000, 0x1000),
+            region(UEFIMemoryType::CONVENTIONAL, 0x10_3000, 0x2000),
+        ];
+        let mut alloc = PhysicalFrameAllocator::new(&map, 0x40_0000, 0x40_1000);
+
+        assert_eq!(alloc.allocate_contiguous(0), None);
+        // Two frames cannot be obtained across the reserved descriptor.
+        assert_eq!(alloc.allocate_contiguous(3), None);
+        assert_eq!(alloc.allocate_contiguous(2), Some(0x10_1000));
+    }
+
 }
