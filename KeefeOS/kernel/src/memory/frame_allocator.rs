@@ -566,21 +566,6 @@ mod tests {
         assert_eq!(alloc.allocate(), Some(0x10_1000));
         assert_eq!(alloc.allocate(), Some(0x20_0000));
     }
-}
-
-/// Implementation of x86_64's FrameAllocator trait for interoperability
-unsafe impl x86_64::structures::paging::FrameAllocator<x86_64::structures::paging::Size4KiB>
-    for PhysicalFrameAllocator
-{
-    fn allocate_frame(
-        &mut self,
-    ) -> Option<x86_64::structures::paging::PhysFrame<x86_64::structures::paging::Size4KiB>>
-    {
-        self.allocate().and_then(|addr| {
-            let physical = x86_64::PhysAddr::new(addr as u64);
-            x86_64::structures::paging::PhysFrame::from_start_address(physical).ok()
-        })
-    }
     #[test]
     fn overflowing_usable_range_is_never_made_allocatable() {
         // A malformed descriptor whose end wraps must not expose any frame.
@@ -606,9 +591,24 @@ unsafe impl x86_64::structures::paging::FrameAllocator<x86_64::structures::pagin
         let mut alloc = PhysicalFrameAllocator::new(&map, 0x40_0000, 0x40_1000);
 
         assert_eq!(alloc.allocate_contiguous(0), None);
-        // Two frames cannot be obtained across the reserved descriptor.
+        // Three frames cannot be obtained across the reserved descriptor.
         assert_eq!(alloc.allocate_contiguous(3), None);
         assert_eq!(alloc.allocate_contiguous(2), Some(0x10_1000));
     }
 
 }
+
+/// Implementation of x86_64's FrameAllocator trait for interoperability
+unsafe impl x86_64::structures::paging::FrameAllocator<x86_64::structures::paging::Size4KiB>
+    for PhysicalFrameAllocator
+{
+    fn allocate_frame(
+        &mut self,
+    ) -> Option<x86_64::structures::paging::PhysFrame<x86_64::structures::paging::Size4KiB>>
+    {
+        self.allocate().and_then(|addr| {
+            let physical = x86_64::PhysAddr::new(addr as u64);
+            x86_64::structures::paging::PhysFrame::from_start_address(physical).ok()
+        })
+    }
+
