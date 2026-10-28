@@ -48,6 +48,9 @@ jobs:
             --target x86_64-unknown-uefi
           rustup show
 
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+
       - name: Check host-side xtask
         run: cargo check --locked --package xtask --target x86_64-unknown-linux-gnu
 
