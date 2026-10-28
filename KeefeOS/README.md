@@ -4,11 +4,11 @@ KeefeOS is an experimental x86-64 bare-metal kernel and UEFI loader. Early boot 
 
 ## Latest verified status
 
-The most recent completed passing evidence for the PR #28 implementation before this documentation refresh is [GitHub Actions run 40663043280](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40663043280) on commit `ea0727c7eb2ba9eb19bd8e3b66ac61e091d4f6c0` (PR #27 was closed in favor of [PR #28](https://github.com/CallmeKeefe/Keefe-OS/pull/28)). That run passed 22 boot-protocol tests and 47 kernel unit tests, the host helper check, RustSec cargo-audit, Clippy checks, optional legacy-VGA compilation, both target builds, image packaging, and QEMU/OVMF boot/splash tests at 256 MiB, 512 MiB, and 1 GiB RAM. The kernel emitted `KEEFEOS-KERNEL-BOOT-OK` in all three profiles.
+The latest completed passing run confirmed from GitHub records is [Actions run 40698180312](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40698180312) on PR-head commit `9cfbbff013765ca88b3a999471ab2248787b1308`. It passed 22 boot-protocol tests and 51 kernel unit tests, the host helper check, RustSec cargo-audit, Clippy, optional legacy-VGA compilation, both target builds, image packaging, and QEMU/OVMF boot/splash tests at 256 MiB, 512 MiB, and 1 GiB RAM. The kernel emitted `KEEFEOS-KERNEL-BOOT-OK` in all three profiles. This proves only that exact commit: later main code `c27a616c7330702c65213f185a0dec41810a6b4d` and subsequent workflow/doc commits still need confirmed CI runs.
 
 The loader draws a UEFI GOP splash using firmware BLT before ExitBootServices. Direct kernel framebuffer writes remain disabled until active page-table mapping and MMIO cache attributes are proven; a reserved UEFI memory descriptor alone is insufficient. The kernel is linked for a fixed **32–64 MiB x86-64 load window**; relocation is not implemented.
 
-## Workspace packages
+A CodeQL workflow for Rust and GitHub Actions is configured in `.github/workflows/codeql.yml`; its first scan result is not yet verified.\n\n## Workspace packages
 
 - `boot-protocol`: versioned BootInfo and bounded ELF64 parser.
 - `bootloader`: UEFI application and kernel segment loading.
