@@ -109,7 +109,9 @@ Do not follow generic OS installation instructions to write the image to a USB s
 
 A future physical-device milestone must first include a tested installer/image layout, documented supported hardware, safe disk selection and confirmation, recovery/rollback procedures, reproducible builds, signed artifacts, and successful non-destructive hardware tests. None of those should be implied by the current QEMU early-boot result.
 
-## 9. Security and feature status\n\nA pinned CodeQL workflow now targets Rust and GitHub Actions under `../.github/workflows/codeql.yml`; its first scan has not yet been verified. A configured scanner is not a clean scan.
+## 9. Security and feature status
+
+A pinned CodeQL workflow now targets Rust and GitHub Actions under `../.github/workflows/codeql.yml`; its first scan has not yet been verified. A configured scanner is not a clean scan.
 
 Secure-boot signature verification, trusted cryptographic operations, capability verification, real vulnerability scanning, and attack detection are not implemented as reliable security controls. An empty scanner result does not mean a system is clean. See [SECURITY.md](../SECURITY.md), [security status](audit/SECURITY_STATUS.md), and [OS status](audit/OS_STATUS.md).
 
