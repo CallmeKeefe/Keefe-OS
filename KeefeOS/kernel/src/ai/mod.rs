@@ -1,14 +1,14 @@
-//! Experimental deterministic AI/ML-style heuristics for KeefeOS.
+//! Experimental deterministic AI-related heuristics for KeefeOS.
 //!
 //! These modules are prototypes for host-testable heuristics. They are not a
 //! trained or remotely hosted model, do not run a general-purpose agent, and
 //! do not enforce scheduling, paging, or security policy. Do not use their
 //! outputs as a security decision or claim that they predict live workloads.
 //!
-//! General LLM inference, provider/API access, MCP clients, and agent tools
-//! belong in a future isolated user-space service after process and IPC
-//! boundaries exist.
-
+//! Calling init initializes these prototype interfaces only; it does not load
+//! trained weights, connect telemetry, or activate kernel enforcement. General
+//! LLM inference, provider/API access, MCP clients, and agent tools belong in a
+//! future isolated user-space service after process and IPC boundaries exist.
 
 use core::sync::atomic::{AtomicU64, Ordering};
 
@@ -26,34 +26,25 @@ static INFERENCE_COUNT: AtomicU64 = AtomicU64::new(0);
 static TRAINING_ITERATIONS: AtomicU64 = AtomicU64::new(0);
 static PREDICTION_ACCURACY: AtomicU64 = AtomicU64::new(0);
 
-/// Initialize the AI/ML subsystem
+/// Initialize the experimental AI-related prototype interfaces.
 ///
-/// This should be called after memory management is initialized
-/// but before user-space processes are started.
+/// This must not be interpreted as loading a trained model or activating
+/// process scheduling, paging, telemetry, or security enforcement.
 pub fn init() {
-    log::info!("Initializing KeefeOS AI/ML Subsystem v{}", AI_VERSION);
-    
-    // Initialize neural network engine
+    log::warn!(
+        "Initializing KeefeOS AI-related prototypes v{}; no trained model or LLM is loaded",
+        AI_VERSION
+    );
+
     neural_net::init();
-    
-    // Initialize scheduler ML models
     scheduler::init();
-    
-    // Initialize memory predictor
     memory_predictor::init();
-    
-    // Initialize anomaly detector
     anomaly_detector::init();
-    
-    // Initialize performance optimizer
     optimizer::init();
-    
-    log::info!("AI/ML Subsystem initialized successfully");
-    log::info!("  - Neural Network Engine: Ready");
-    log::info!("  - ML Scheduler: Active");
-    log::info!("  - Memory Predictor: Active");
-    log::info!("  - Security Anomaly Detector: Active");
-    log::info!("  - Performance Optimizer: Active");
+
+    log::warn!(
+        "Prototype interfaces initialized only: heuristic scheduling, memory, anomaly, and tuning recommendations are not connected to live OS enforcement"
+    );
 }
 
 /// Get global AI statistics
