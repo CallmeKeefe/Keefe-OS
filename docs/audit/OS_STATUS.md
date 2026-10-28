@@ -1,20 +1,23 @@
 # KeefeOS current engineering status
 
-**Evidence refresh:** 2026-10-28  
-**Most recent completed passing evidence before documentation-only follow-up commits:** commit `ea0727c7eb2ba9eb19bd8e3b66ac61e091d4f6c0` (the consolidated code commit before documentation-only follow-up commits).  
-**CI run:** [40663043280](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40663043280)  
-**Review:** PR #27 was closed in favor of consolidated [PR #28](https://github.com/CallmeKeefe/Keefe-OS/pull/28); verify the latest PR #28 run before merging.
+**Evidence refresh:** 2026-10-29  
+**Latest completed full CI pass confirmed:** [run 40698180312](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40698180312) on PR-head commit `9cfbbff013765ca88b3a999471ab2248787b1308`. The full job passed 22 boot-protocol tests and 51 kernel unit tests, RustSec auditing, Clippy checks, both target builds, image packaging, and the three-profile QEMU/OVMF early-boot matrix.  
+**Scope caveat:** `main` later advanced to code commit `c27a616c7330702c65213f185a0dec41810a6b4d`, followed by audit/documentation changes and the new CodeQL workflow. A passing result for those later revisions was not confirmed during this audit; check [current Actions runs](https://github.com/CallmeKeefe/Keefe-OS/actions).
+
+## New static-analysis workflow
+
+`.github/workflows/codeql.yml` was added for CodeQL analysis of Rust and GitHub Actions workflows, using full-length immutable action SHAs and job-level `security-events: write`. The first CodeQL run and SARIF upload are **not yet verified**; do not describe the repository as having a clean CodeQL scan until a successful result is visible.
 
 ## Verified in CI
 
 | Check | Result | Evidence |
 |---|---|---|
-| Host `xtask` check | PASS | Run 40663043280 |
+| Host `xtask` check | PASS | Run 40698180312 |
 | Boot protocol / ELF parser tests | PASS — 22 tests | Run 40663043280 |
-| Host-side kernel unit tests | PASS — 47 tests | Run 40663043280 |
+| Host-side kernel unit tests | PASS — 51 tests | Run 40663043280 |
 | `x86_64-unknown-none` kernel build | PASS | Run 40663043280 |
 | `x86_64-unknown-uefi` loader build | PASS | Run 40663043280 |
-| RustSec `cargo-audit` on Cargo.lock | PASS — 58 locked crate dependencies scanned; no advisory findings reported by the step | Run 40663043280 |
+| RustSec `cargo-audit` on Cargo.lock | PASS — Cargo.lock scanned (58 dependencies); no advisory finding caused the audit step to fail | Run 40663043280 |
 | Clippy: boot protocol, kernel library, host helper | PASS (warnings remain) | Run 40663043280 |
 | Optional legacy-VGA feature compilation | PASS; feature remains disabled by default | Run 40663043280 |
 | FAT disk image assembly | PASS | Artifact uploaded by workflow |
