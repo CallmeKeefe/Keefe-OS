@@ -151,32 +151,38 @@ impl PhysicalFrameAllocator {
     /// 2. Use trailing_zeros() to find the exact bit position
     /// 3. Set the bit and return the frame address
     pub fn allocate(&mut self) -> Option<usize> {
-        // Search for a free frame (bit = 0)
+        // A frame is allocatable only if it is both free and explicitly eligible.
+        // Combining the bitmaps also prevents a corrupted/inconsistent occupied
+        // bitmap from making a reserved frame available.
         let words_to_scan = self.total_frames.saturating_add(63) / 64;
-        for (word_idx, word) in self.bitmap.iter_mut().take(words_to_scan).enumerate() {
-            if *word != u64::MAX {
-                // This word has at least one free bit
-                let free_bit = word.trailing_ones();
-                if free_bit < 64 {
-                    let frame_idx = word_idx * 64 + free_bit as usize;
-                    
-                    if frame_idx < self.total_frames {
-                        // Mark as allocated
-                        *word |= 1 << free_bit;
-                        self.allocated_count += 1;
-                        
-                        let phys_addr = frame_idx * FRAME_SIZE;
-                        log::trace!("Allocated frame {} at {:#x}", frame_idx, phys_addr);
-                        
-                        return Some(phys_addr);
-                    }
-                }
+        for word_idx in 0..words_to_scan {
+            let occupied = self.bitmap[word_idx];
+            let eligible = self.allocatable[word_idx];
+            let mut free_eligible = !occupied & eligible;
+
+            let valid_frames = self.total_frames.saturating_sub(word_idx * 64).min(64);
+            if valid_frames < 64 {
+                let valid_mask = if valid_frames == 0 { 0 } else { (1u64 << valid_frames) - 1 };
+                free_eligible &= valid_mask;
+            }
+
+            if free_eligible != 0 {
+                let free_bit = free_eligible.trailing_zeros() as usize;
+                let frame_idx = word_idx * 64 + free_bit;
+                Self::set_bit(&mut self.bitmap, frame_idx, true);
+                self.allocated_count += 1;
+
+                let phys_addr = frame_idx * FRAME_SIZE;
+                log::trace!("Allocated frame {} at {:#x}", frame_idx, phys_addr);
+                return Some(phys_addr);
             }
         }
-        
-        // No free frames available
-        log::warn!("Out of physical memory! Allocated: {}/{}",
-                   self.allocated_count, self.total_frames);
+
+        log::warn!(
+            "Out of physical memory! Allocated: {}/{}",
+            self.allocated_count,
+            self.total_frames
+        );
         None
     }
     
@@ -200,42 +206,34 @@ impl PhysicalFrameAllocator {
         if count == 0 || count > self.total_frames {
             return None;
         }
-        
-        // Simple linear search for contiguous free frames
-        let mut consecutive_free = 0;
-        let mut start_idx = None;
-        
+
+        // Eligibility must hold for every page; free bitmap bits alone are not
+        // sufficient proof that a frame belongs to usable conventional memory.
+        let mut consecutive_free = 0usize;
+        let mut start_idx = 0usize;
+
         for frame_idx in 0..self.total_frames {
-            if !Self::get_bit(&self.bitmap, frame_idx) {
-                // Frame is free
+            let eligible_free = !Self::get_bit(&self.bitmap, frame_idx)
+                && Self::get_bit(&self.allocatable, frame_idx);
+
+            if eligible_free {
                 if consecutive_free == 0 {
-                    start_idx = Some(frame_idx);
+                    start_idx = frame_idx;
                 }
                 consecutive_free += 1;
-                
-                if consecutive_free >= count {
-                    // Found enough contiguous frames
-                    break;
+
+                if consecutive_free == count {
+                    for allocated_idx in start_idx..start_idx + count {
+                        Self::set_bit(&mut self.bitmap, allocated_idx, true);
+                    }
+                    self.allocated_count += count;
+                    return Some(start_idx * FRAME_SIZE);
                 }
             } else {
-                // Frame is allocated, reset counter
                 consecutive_free = 0;
-                start_idx = None;
             }
         }
-        
-        if let Some(start) = start_idx {
-            if consecutive_free >= count {
-                // Mark all frames as allocated
-                for i in 0..count {
-                    Self::set_bit(&mut self.bitmap, start + i, true);
-                }
-                self.allocated_count += count;
-                
-                return Some(start * FRAME_SIZE);
-            }
-        }
-        
+
         None
     }
     
@@ -461,6 +459,18 @@ mod tests {
         assert!(!alloc.is_allocated(0x10_0000 / FRAME_SIZE));
         assert!(alloc.is_allocated(0x10_1000 / FRAME_SIZE));
         assert!(!alloc.is_allocated(0x10_2000 / FRAME_SIZE));
+    }
+
+    #[test]
+    fn allocation_never_returns_a_reserved_overlapping_frame() {
+        let map = [
+            region(UEFIMemoryType::CONVENTIONAL, 0x10_0000, 0x3000),
+            region(UEFIMemoryType::RESERVED, 0x10_1000, 0x1000),
+        ];
+        let mut alloc = PhysicalFrameAllocator::new(&map, 0x10_0000, 0x10_1000);
+
+        assert_eq!(alloc.allocate(), Some(0x10_2000));
+        assert_eq!(alloc.allocate(), None);
     }
 
     #[test]
