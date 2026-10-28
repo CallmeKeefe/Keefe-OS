@@ -204,22 +204,29 @@ pub fn detect_anomaly(metrics: &[f32]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
-    fn test_layer_creation() {\n    #[test]\n    fn missing_global_model_returns_neutral_priority() {\n        *GLOBAL_NN.lock() = None;\n        NN_INITIALIZED.store(true, Ordering::Release);\n        assert_eq!(predict_scheduling_priority(&[0.5; 8]), 5);\n    }\n
+    fn test_layer_creation() {
         let layer = Layer::new(4, 8);
         assert_eq!(layer.output_size(), 8);
     }
-    
+
+    #[test]
+    fn missing_global_model_returns_neutral_priority() {
+        *GLOBAL_NN.lock() = None;
+        NN_INITIALIZED.store(true, Ordering::Release);
+        assert_eq!(predict_scheduling_priority(&[0.5; 8]), 5);
+    }
+
     #[test]
     fn test_network_forward() {
         let mut nn = NeuralNetwork::new();
         nn.add_layer(4, 8);
         nn.add_layer(8, 2);
-        
+
         let input = [0.5, 0.3, 0.7, 0.1];
         let output = nn.predict(&input);
-        
+
         assert_eq!(output.len(), 16);
     }
 }
