@@ -1,11 +1,12 @@
 # KeefeOS branch consolidation report
 
 **Snapshot date:** 2026-10-29  
-**Current `main` HEAD:** `c27a616c7330702c65213f185a0dec41810a6b4d`  
+**Comparison baseline (main HEAD before this report refresh):** `c27a616c7330702c65213f185a0dec41810a6b4d`  
+**Report refresh commit:** `7d81532bae2ffa2f72803cac97e6c9417ac976d7`  
 **Remote branches observed:** 20, including `main`  
 **Open pull requests:** the connected GitHub search returned none at the time of this snapshot.
 
-This report records branch graph comparisons against the current `main` HEAD. Commit counts are not the same as missing code: previous work was consolidated through pull requests, and a squash merge can leave old branch histories looking divergent even when the changes are already in `main`. Do not merge or delete a divergent branch based on counts alone.
+This report records branch graph comparisons against the specified baseline. Commit counts are not the same as missing code: previous work was consolidated through pull requests, and a squash merge can leave old branch histories looking divergent even when the changes are already in `main`. Do not merge or delete a divergent branch based on counts alone.
 
 ## Current inventory
 
