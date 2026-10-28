@@ -22,13 +22,11 @@ bitflags.workspace = true
 log.workspace = true
 spin.workspace = true
 
-# uefi for memory map parsing (used during boot, then can be minimized)
-uefi = { workspace = true, optional = true }
+# UEFI firmware protocols are owned by the bootloader; the kernel consumes
+# only the validated shared boot-protocol ABI.
 
-# Optional dependencies for different phases
+# Optional kernel mechanisms
 [features]
-default = ["uefi-boot"]
-uefi-boot = ["dep:uefi"]
 # The page-table managers are legacy prototypes and are disabled until migrated.
 experimental-paging = []
 # Unsafe legacy VGA text-memory output is disabled unless a target explicitly opts in.
