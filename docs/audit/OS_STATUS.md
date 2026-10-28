@@ -1,7 +1,7 @@
 # KeefeOS current engineering status
 
 **Evidence refresh:** 2026-10-28  
-**Most recent completed passing evidence before documentation-only follow-up commits:** commit `ea0727c7eb2ba9eb19bd8e3b66ac61e091d4f6c0` (historical run before consolidation).  
+**Most recent completed passing evidence before documentation-only follow-up commits:** commit `ea0727c7eb2ba9eb19bd8e3b66ac61e091d4f6c0` (the consolidated code commit before documentation-only follow-up commits).  
 **CI run:** [40663043280](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40663043280)  
 **Review:** PR #27 was closed in favor of consolidated [PR #28](https://github.com/CallmeKeefe/Keefe-OS/pull/28); verify the latest PR #28 run before merging.
 
