@@ -85,7 +85,7 @@ The image command assembles the project image. **Image creation is not a boot te
 
 ## 6. Verify early boot in QEMU/OVMF
 
-The latest full passing run is [GitHub Actions #40605994765](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40605994765) on commit `b55a9575690925a6ec2304b27a79df1b591b4b3d` (PR #27, not merged). It passed 22 boot-protocol tests, 47 kernel unit tests, a RustSec dependency advisory scan of `Cargo.lock`, Clippy checks, both target builds, image packaging, and the QEMU/OVMF three-profile boot matrix. The CI run does not prove a complete OS or physical-device support.
+The latest completed passing code run is [GitHub Actions #40663043280](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40663043280) on commit `ea0727c7eb2ba9eb19bd8e3b66ac61e091d4f6c0` on active PR #28. Documentation-only updates may trigger a newer run. It passed 22 boot-protocol tests, 47 kernel unit tests, a RustSec dependency advisory scan of `Cargo.lock`, Clippy checks, both target builds, image packaging, and the QEMU/OVMF three-profile boot matrix. The CI run does not prove a complete OS or physical-device support.
 
 The canonical end-to-end test is the repository's [KeefeOS CI workflow](../.github/workflows/keefeos-ci.yml). It builds and packages the image, discovers a matching OVMF firmware code/variables pair, and boots QEMU at 256 MiB, 512 MiB, and 1 GiB RAM. The workflow requires both the firmware splash marker and `KEEFEOS-KERNEL-BOOT-OK` in each serial log.
 
