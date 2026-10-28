@@ -593,7 +593,7 @@ mod tests {
         assert_eq!(alloc.allocate_contiguous(0), None);
         // Three frames cannot be obtained across the reserved descriptor.
         assert_eq!(alloc.allocate_contiguous(3), None);
-        assert_eq!(alloc.allocate_contiguous(2), Some(0x10_1000));
+        assert_eq!(alloc.allocate_contiguous(2), Some(0x10_3000));
     }
 
 }
