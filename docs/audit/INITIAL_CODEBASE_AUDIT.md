@@ -1,14 +1,14 @@
 # KeefeOS audit and remediation status
 
 **Initial audit baseline:** `98a7f75cb8273037615ae0fe29ac70aa94bbce8e`  
-**Most recent completed passing code evidence:** `ea0727c7eb2ba9eb19bd8e3b66ac61e091d4f6c0` on active [PR #28](https://github.com/CallmeKeefe/Keefe-OS/pull/28).  
-**CI evidence:** [run 40663043280](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40663043280). Documentation-only changes may trigger a newer run.
+**Latest completed passing code evidence confirmed:** [run 40698180312](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40698180312) on PR-head commit `9cfbbff013765ca88b3a999471ab2248787b1308`. This does not verify later revisions of `main`.  
+**Current-main caveat:** the branch subsequently advanced to `c27a616c7330702c65213f185a0dec41810a6b4d`, and later audit/documentation and CodeQL workflow commits still require fresh CI confirmation.
 
 This is an evidence-based engineering status, not a formal verification or security certification.
 
 ## Current verified state
 
-CI run 40663043280 passed 22 boot-protocol tests, 47 kernel tests, RustSec cargo-audit against the locked dependency set, host helper check, Clippy checks, optional legacy-VGA feature compilation, kernel and UEFI-loader builds, FAT image assembly, and QEMU/OVMF smoke tests at **256 MiB, 512 MiB, and 1 GiB RAM**. Each serial log contained `UEFI GOP splash drawn through firmware BLT` and `KEEFEOS-KERNEL-BOOT-OK`.
+CI run 40698180312 passed 22 boot-protocol tests, 51 kernel tests, RustSec cargo-audit against the locked dependency set, host helper check, Clippy checks, optional legacy-VGA feature compilation, kernel and UEFI-loader builds, FAT image assembly, and QEMU/OVMF smoke tests at **256 MiB, 512 MiB, and 1 GiB RAM**. Each serial log contained `UEFI GOP splash drawn through firmware BLT` and `KEEFEOS-KERNEL-BOOT-OK`.
 
 The UEFI splash is rendered by firmware before ExitBootServices. Direct kernel framebuffer writes remain disabled until active page-table mapping and MMIO cache attributes are proven. Firmware memory-map classification alone is not sufficient.
 
@@ -35,7 +35,7 @@ CI now tests three RAM sizes and requires both UEFI splash and kernel boot marke
 ### KOS-007 — Security/AI claims exceeded implementation (PARTIALLY REMEDIATED)
 Sensitive placeholder crypto and capability APIs fail closed. Scanner/attack detector/secure-boot APIs remain non-functional placeholders. See `docs/audit/SECURITY_STATUS.md`.
 
-## Remaining work
+## Static-analysis status\n\nA dedicated CodeQL workflow for Rust and GitHub Actions was added in `.github/workflows/codeql.yml`. Its first run/result upload has not yet been confirmed; it is configured coverage, not evidence of a clean scan.\n\n## Remaining work
 
 1. Resolve the GOP memory-map gap with a correctly designed and tested physical/MMIO mapping contract; do not bypass validation.
 2. Remove or explicitly constrain the fixed 32–64 MiB load address; ideally add verified relocation support.
@@ -47,6 +47,6 @@ Sensitive placeholder crypto and capability APIs fail closed. Scanner/attack det
 
 ## Claims
 
-Verified: x86-64 QEMU + OVMF early boot with 256 MiB, 512 MiB, and 1 GiB RAM; firmware-rendered GOP splash; 22 protocol tests and 47 kernel tests.
+Verified: x86-64 QEMU + OVMF early boot with 256 MiB, 512 MiB, and 1 GiB RAM; firmware-rendered GOP splash; 22 protocol tests and 51 kernel tests.
 
 Not verified: physical PC installation, other UEFI firmware, VirtualBox/VMware/Hyper-V, a persistent kernel framebuffer console, full scheduler/process model, secure boot, real cryptography, broad drivers, ARM64, RISC-V, phones, or production security.
