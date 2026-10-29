@@ -168,7 +168,7 @@ fn efi_main() -> Status {
     // SAFETY: all allocations are complete. The returned map is tied to the
     // successful ExitBootServices operation. No boot-service function is used
     // after this point.
-    let memory_map = unsafe { boot::exit_boot_services(MemoryType::LOADER_DATA) };
+    let memory_map = unsafe { boot::exit_boot_services(Some(MemoryType::LOADER_DATA)) };
 
     if memory_map.is_empty() || memory_map.len() > MAX_MEMORY_DESCRIPTORS {
         halt_after_exit();
