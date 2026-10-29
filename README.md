@@ -6,9 +6,9 @@
 
 ## Latest confirmed CI milestone
 
-**Latest completed full CI pass confirmed:** [run 40698180312](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40698180312) on PR-head commit `9cfbbff013765ca88b3a999471ab2248787b1308`. This is evidence for that exact commit, not for later revisions of `main`. The code then advanced to `c27a616c7330702c65213f185a0dec41810a6b4d`; the current main revision and subsequent audit/workflow changes still need their own confirmed CI results. Check [GitHub Actions](https://github.com/CallmeKeefe/Keefe-OS/actions) for the exact commit and result.
+**Latest completed full CI pass confirmed in this audit:** [run 40796664038](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40796664038) on current `main` commit `a03f9eef3d21c68b60066e03de3a37df00e588fa`. All 18 job steps completed successfully, including host helper checks, boot-protocol/ELF tests, kernel unit tests, RustSec audit, Clippy, kernel and UEFI-loader builds, disk-image packaging, and the QEMU/OVMF boot-and-splash matrix.
 
-The full job passed 22 boot-protocol tests and 51 kernel unit tests, the host helper check, RustSec `cargo-audit` over the 58 locked crate dependencies, Clippy, optional legacy-VGA compilation, kernel and UEFI-loader builds, disk-image packaging, and QEMU/OVMF boot-and-splash checks at **256 MiB, 512 MiB, and 1 GiB RAM**. Each profile emitted `KEEFEOS-KERNEL-BOOT-OK`; the framebuffer memory-map gap remained, so direct kernel framebuffer writes stay disabled.
+The run passed 22 boot-protocol tests and 51 kernel unit tests, audited the locked Rust dependencies, and booted under **256 MiB, 512 MiB, and 1 GiB RAM**. Each profile emitted `KEEFEOS-KERNEL-BOOT-OK`. The framebuffer memory-map gap remains; direct kernel framebuffer writes are still disabled. This confirms the tested x86-64 QEMU/OVMF prototype, not physical installation or general hardware support.
 
 Representative serial output:
 
@@ -29,8 +29,8 @@ This verifies three QEMU RAM profiles using the same x86-64 QEMU/OVMF setup. It 
 |---|---|
 | BootInfo ABI and bounded ELF64 parser | 22 protocol tests passed |
 | Kernel unit tests | 51 passed |
-| Kernel / UEFI loader builds | Passed in the cited CI run |
-| QEMU/OVMF early boot | Passed with 256 MiB, 512 MiB, and 1 GiB RAM in run 40698180312; current `main` requires a fresh result |
+| Kernel / UEFI loader builds | Passed in run 40796664038 on current main |
+| QEMU/OVMF early boot | Passed with 256 MiB, 512 MiB, and 1 GiB RAM in run 40796664038 on current main |
 | UEFI visual boot splash | Passed using firmware GOP BLT before ExitBootServices |
 | Kernel load address | Fixed 32–64 MiB identity-mapped window; relocation is not implemented |
 | Direct kernel framebuffer console | **Disabled by design**: a reserved UEFI descriptor does not prove active virtual mapping or correct MMIO cache attributes; firmware draws the splash before `ExitBootServices`. |
@@ -47,7 +47,7 @@ Check [GitHub Actions](https://github.com/CallmeKeefe/Keefe-OS/actions) for the 
 
 ## Repository layout
 
-- `.github/workflows/codeql.yml` — pinned CodeQL analysis for Rust and GitHub Actions; initial result pending.
+- `.github/workflows/codeql.yml` — pinned CodeQL analysis for Rust and GitHub Actions; check its run status separately from the successful boot/build workflow.
 - `KeefeOS/boot-protocol` — versioned BootInfo ABI and bounds-checked ELF64 parser.
 - `KeefeOS/bootloader` — UEFI loader and firmware-rendered boot splash.
 - `KeefeOS/kernel` — x86-64 kernel, memory management, interrupt setup, and experimental modules.
