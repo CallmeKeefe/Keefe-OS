@@ -12,12 +12,12 @@ description = "Experimental x86_64 bare-metal OS kernel and UEFI loader written 
 
 [workspace.dependencies]
 # uefi 0.33 provides the supported helper/logger API; uefi-services is deprecated.
-uefi = { version = "0.33", default-features = false, features = ["logger", "log-debugcon"] }
+uefi = { version = "0.41", default-features = false, features = ["logger", "log-debugcon"] }
 x86_64 = { version = "0.15", default-features = false, features = ["instructions", "abi_x86_interrupt", "nightly"] }
-volatile = "0.4"
+volatile = "0.6"
 bitflags = "2.6"
 log = { version = "0.4", default-features = false }
-spin = { version = "0.9", default-features = false, features = ["mutex", "spin_mutex"] }
+spin = { version = "0.12", default-features = false, features = ["mutex", "spin_mutex"] }
 
 [profile.dev]
 panic = "abort"
