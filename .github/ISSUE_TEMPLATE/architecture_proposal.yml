@@ -1,0 +1,43 @@
+name: Architecture proposal
+description: Discuss a substantial kernel, boot, memory, driver, or security design before implementation.
+title: "[Proposal]: "
+labels: ["proposal", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Large architectural changes should be discussed before implementation. Claims about security or compatibility must be tied to a threat model and reproducible evidence.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and motivation
+      description: What concrete limitation or bug is this intended to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Proposed design
+      description: Include invariants, interfaces, ownership/lifetime rules, and failure behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety, threat model, and failure modes
+      description: Explain trust boundaries, unsafe code, attack surface, and fail-closed behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and trade-offs
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification plan
+      description: Host tests, target builds, emulator/firmware profiles, and what cannot yet be tested.
+    validations:
+      required: true
