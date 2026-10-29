@@ -1,0 +1,68 @@
+name: Bug report
+description: Report a reproducible KeefeOS bug with exact environment and evidence.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        KeefeOS is experimental and currently targets an x86-64 QEMU/OVMF early-boot path. Do not install it on a physical disk or use data you need to preserve.
+  - type: input
+    id: commit
+    attributes:
+      label: Commit SHA
+      description: Exact 40-character commit being tested.
+      placeholder: "full commit SHA"
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Ubuntu Linux + QEMU/OVMF
+        - Ubuntu on WSL2 + QEMU/OVMF
+        - Other virtual machine
+        - Physical hardware (diagnostic report only; do not install/run on important hardware)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Tool versions
+      description: Rust toolchain, QEMU version, firmware package/version where relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal exact commands and inputs.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and logs
+      description: Include relevant serial output and failing command; redact secrets and personal data.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety and scope
+      options:
+        - label: I tested in an isolated VM or otherwise understand this is an experimental prototype.
+          required: true
+        - label: I have not included secrets, access tokens, or private data in this report.
+          required: true
