@@ -6,9 +6,11 @@
 
 ## Latest confirmed CI milestone
 
-**Latest completed full CI pass confirmed in this audit:** [run 40796664038](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40796664038) on current `main` commit `a03f9eef3d21c68b60066e03de3a37df00e588fa`. All 18 job steps completed successfully, including host helper checks, boot-protocol/ELF tests, kernel unit tests, RustSec audit, Clippy, kernel and UEFI-loader builds, disk-image packaging, and the QEMU/OVMF boot-and-splash matrix.
+**Latest completed full CI pass confirmed in this audit:** [run 40806575491](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40806575491) on current `main` commit `db7e65e974b91fcb895b8f0514a8434f37be122e`. All 18 job steps completed successfully, including host helper checks, boot-protocol/ELF tests, kernel unit tests, RustSec audit, Clippy, kernel and UEFI-loader builds, disk-image packaging, and the QEMU/OVMF boot-and-splash matrix.
 
-The run passed 22 boot-protocol tests and 51 kernel unit tests, audited the locked Rust dependencies, and booted under **256 MiB, 512 MiB, and 1 GiB RAM**. Each profile emitted `KEEFEOS-KERNEL-BOOT-OK`. The framebuffer memory-map gap remains; direct kernel framebuffer writes are still disabled. This confirms the tested x86-64 QEMU/OVMF prototype, not physical installation or general hardware support.
+This run passed 22 boot-protocol tests and 53 kernel unit tests, audited the locked Rust dependencies, and booted under **256 MiB, 512 MiB, and 1 GiB RAM**. Each profile emitted `KEEFEOS-KERNEL-BOOT-OK`. The build still emits compiler warnings (including 126 kernel-library warnings); a successful CI result is not a warning-free build. The framebuffer memory-map gap remains; direct kernel framebuffer writes are still disabled. This confirms the tested x86-64 QEMU/OVMF prototype, not physical installation or general hardware support.
+
+A separate [CodeQL run 40806575580](https://github.com/CallmeKeefe/Keefe-OS/actions/runs/40806575580) completed both Rust and GitHub Actions analysis jobs successfully. This confirms the analysis jobs ran; it does not by itself establish that the code-scanning alert list is empty.
 
 Representative serial output:
 
@@ -28,7 +30,7 @@ This verifies three QEMU RAM profiles using the same x86-64 QEMU/OVMF setup. It 
 | Area | Status |
 |---|---|
 | BootInfo ABI and bounded ELF64 parser | 22 protocol tests passed |
-| Kernel unit tests | 51 passed |
+| Kernel unit tests | 53 passed in run 40806575491 |
 | Kernel / UEFI loader builds | Passed in run 40796664038 on current main |
 | QEMU/OVMF early boot | Passed with 256 MiB, 512 MiB, and 1 GiB RAM in run 40796664038 on current main |
 | UEFI visual boot splash | Passed using firmware GOP BLT before ExitBootServices |
@@ -40,7 +42,7 @@ This verifies three QEMU RAM profiles using the same x86-64 QEMU/OVMF setup. It 
 | Secure boot, authenticated cryptography, capability signatures | Not implemented; sensitive APIs fail closed |
 | Vulnerability scanner / attack detector | Placeholder interfaces; empty results do not mean a clean system |
 | ARM64, RISC-V, mobile devices | Not supported |
-| CodeQL static analysis | Workflow added for Rust and GitHub Actions; first result not yet verified |
+| CodeQL static analysis | Rust and GitHub Actions analysis jobs completed successfully in run 40806575580; alert review remains separate |
 | End-user installer / recovery / upgrades | Not implemented |
 
 Check [GitHub Actions](https://github.com/CallmeKeefe/Keefe-OS/actions) for the latest result. Results from later commits may differ.
