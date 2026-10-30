@@ -82,3 +82,10 @@ The two audit branches contain broad changes across kernel code, build configura
 The connected GitHub operations available in this session support branch search/comparison and repository file/commit operations, but do not expose a branch-delete action. No remote branch was deleted in this audit. Branch cleanup remains incomplete and must be performed through GitHub's Branches page or an authorized Git client after review. No branch was force-rewritten to imitate deletion.
 
 This is an API-backed branch graph and selected unique-commit review, not a claim that every line in every historical branch has been exhaustively audited.
+
+
+## Addendum — PR #32 merged after the inventory snapshot
+
+On 2026-10-30, PR [#32](https://github.com/CallmeKeefe/Keefe-OS/pull/32) was merged by squash as commit `e888340a6e6b6ec734fb62ee0eb55d881fcc4088`. Its README CI evidence, security-status update, and this branch inventory are now present on `main`.
+
+The PR head passed the Build/QEMU workflow and both CodeQL analysis jobs before merge. The original table above remains a point-in-time comparison against the pre-merge `main` baseline `db7e65e974b91fcb895b8f0514a8434f37be122e`; it is not a refreshed comparison against the new `main` commit. The merged documentation branch is now a cleanup candidate, but no remote branch was deleted.
