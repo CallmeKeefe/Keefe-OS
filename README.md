@@ -30,7 +30,7 @@ This verifies three QEMU RAM profiles using the same x86-64 QEMU/OVMF setup. It 
 | Area | Status |
 |---|---|
 | BootInfo ABI and bounded ELF64 parser | 22 protocol tests passed |
-| Kernel unit tests | 51 passed |
+| Kernel unit tests | 53 passed in run 40806575491 |
 | Kernel / UEFI loader builds | Passed in run 40796664038 on current main |
 | QEMU/OVMF early boot | Passed with 256 MiB, 512 MiB, and 1 GiB RAM in run 40796664038 on current main |
 | UEFI visual boot splash | Passed using firmware GOP BLT before ExitBootServices |
